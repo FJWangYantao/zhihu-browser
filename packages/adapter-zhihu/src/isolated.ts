@@ -17,9 +17,11 @@ import {
 } from './dom/anchors'
 import { type DarkPatch, startDarkPatch } from './dom/dark-patch'
 import { createHandle, HEADER_OFFSET } from './dom/handle'
-import { addFold, createItemUI, type DecorEnv, type DomItemUI } from './dom/item-ui'
+import { type HealthNotice, showHealthNotice } from './dom/health-notice'
+import { addFold, createItemUI, type DecorEnv, type DomItemUI, noopItemUI } from './dom/item-ui'
 import { type Columns, findColumns } from './dom/layout'
 import { classify, type Filters, processResponse } from './endpoints'
+import { checkAnchors, type FeatureId, type HealthReport, type HealthStage, type HealthSummary } from './health'
 import { keyOf } from './refs'
 import { isSubject, pageInfo } from './routes'
 import { ContentStore } from './store'
@@ -34,6 +36,8 @@ export interface AdapterOptions {
   hydrationTimeout?: number
   /** 兜底检查地址变化的间隔（毫秒），默认 1000 */
   routePollInterval?: number
+  /** 知乎前端激活之后多久做第一轮内容锚点的健康检查（毫秒），默认 3000 */
+  healthDelayMs?: number
 }
 
 export interface Adapter {
@@ -44,6 +48,8 @@ export interface Adapter {
   readonly theme: ThemeSync
   /** 页面结构诊断（纯文本，只有标签名、类名和尺寸），version 是扩展的版本 */
   describe(version?: string): string
+  /** 锚点健康检查的结果：两个时机的检查合在一起（见 health.ts） */
+  health(): HealthSummary
   /** 插件已经加载：开始处理接口响应和页面元素 */
   start(host: Host): void
   dispose(): void
@@ -115,6 +121,9 @@ export function createAdapter(options: AdapterOptions = {}): Adapter {
   function markHydrated(): void {
     if (hydrated) return
     hydrated = true
+    // 知乎前端激活了：查一轮激活之后才有的锚点，再约一轮内容锚点（信息流这时通常已经渲染）
+    runHealthCheck('hydrated')
+    scheduleHealthCheck()
     for (const fn of [...hydrationQueue]) {
       hydrationQueue.delete(fn)
       try {
@@ -136,6 +145,112 @@ export function createAdapter(options: AdapterOptions = {}): Adapter {
       hydrationQueue.add(fn)
       return () => hydrationQueue.delete(fn)
     },
+  }
+
+  // ---------- 锚点健康检查（plan.md 5.4） ----------
+
+  /** 每个时机最近一次的检查结果 */
+  const healthReports = new Map<HealthStage, HealthReport>()
+  const unhealthy = new Set<FeatureId>()
+  let healthNotice: HealthNotice | undefined
+  /** 用户点了"忽略"：同一类页面上不再自动弹出 */
+  let healthDismissedFor: PageInfo['type'] | undefined
+  let healthTimer: number | undefined
+  let lastContentsCheck = 0
+
+  cleanups.push(() => {
+    if (healthTimer !== undefined) win.clearTimeout(healthTimer)
+    healthTimer = undefined
+    healthNotice?.dispose()
+    healthNotice = undefined
+  })
+
+  function healthSummary(): HealthSummary {
+    return {
+      page: page.type,
+      anchors: [...healthReports.values()].flatMap(r => r.anchors),
+      disabledFeatures: [...unhealthy],
+    }
+  }
+
+  function runHealthCheck(stage: HealthStage): void {
+    if (disposed) return
+    const report = checkAnchors(doc, page, stage)
+    if (!report) return
+    healthReports.set(stage, report)
+    applyHealth()
+  }
+
+  /** 一段时间之后再查一轮内容锚点：信息流加载慢或结构变化时兜底 */
+  function scheduleHealthCheck(): void {
+    if (healthTimer !== undefined) win.clearTimeout(healthTimer)
+    healthTimer = win.setTimeout(() => {
+      healthTimer = undefined
+      runHealthCheck('contents')
+    }, options.healthDelayMs ?? 3000)
+  }
+
+  function applyHealth(): void {
+    const failed = new Set<FeatureId>()
+    for (const report of healthReports.values()) for (const f of report.failedFeatures) failed.add(f)
+    const wasContents = unhealthy.has('contents')
+    unhealthy.clear()
+    for (const f of failed) unhealthy.add(f)
+    if (unhealthy.has('contents')) {
+      // 放行：不隐藏任何内容，也不再处理新元素；接口数据的过滤不受影响
+      doc.documentElement?.removeAttribute('data-zb-prehide')
+      pending.clear()
+      for (const item of [...tracked.values()]) untrack(item)
+      // 内容识别停用期间定期复查，结构恢复（或加载完成）后自动重新启用
+      scheduleHealthCheck()
+    } else if (wasContents) {
+      // 重新启用：把停用期间出现的元素补扫一遍
+      if (doc.documentElement) scan(doc.documentElement)
+    }
+    syncHealthNotice()
+  }
+
+  function syncHealthNotice(): void {
+    if (!unhealthy.size || healthDismissedFor === page.type) {
+      healthNotice?.dispose()
+      healthNotice = undefined
+      return
+    }
+    const disabled = [...unhealthy]
+    if (healthNotice) healthNotice.update(disabled)
+    else
+      healthNotice = showHealthNotice(doc, {
+        disabled,
+        diagnose: () => describeReport(),
+        onDismiss: () => {
+          healthNotice = undefined
+          healthDismissedFor = page.type
+        },
+      })
+  }
+
+  /** 识别到内容之后复查（每 2 秒最多一次）：慢加载的页面先误报、后恢复 */
+  function onContentsTracked(): void {
+    const now = Date.now()
+    if (now - lastContentsCheck < 2000) return
+    lastContentsCheck = now
+    runHealthCheck('contents')
+  }
+
+  function resetHealth(): void {
+    healthReports.clear()
+    unhealthy.clear()
+    if (healthTimer !== undefined) {
+      win.clearTimeout(healthTimer)
+      healthTimer = undefined
+    }
+    lastContentsCheck = 0
+    // 提示随旧页面撤下；"忽略"只对同一类页面保持
+    healthNotice?.dispose()
+    healthNotice = undefined
+    // 新页面上重新查一轮：内容锚点等延迟兜底， hydrated 锚点现在就能查
+    runHealthCheck('hydrated')
+    scheduleHealthCheck()
   }
 
   // ---------- 与页面主环境的通道 ----------
@@ -234,6 +349,8 @@ export function createAdapter(options: AdapterOptions = {}): Adapter {
   }
 
   function scan(root: Element): void {
+    // 内容锚点失配：不再识别元素（页面已放行），复查恢复后由 applyHealth 补扫
+    if (unhealthy.has('contents')) return
     if (!root.isConnected || root.matches(OURS)) return
     const contents = root.matches(CONTENT_SELECTOR) ? [root] : []
     contents.push(...root.querySelectorAll(CONTENT_SELECTOR))
@@ -328,6 +445,8 @@ export function createAdapter(options: AdapterOptions = {}): Adapter {
     item.handle = createHandle(el, () => item.content as Content)
     tracked.set(el, item)
     el.setAttribute('data-zb-id', key)
+    // 先复查锚点（限频）：确认上一轮的失配是不是加载慢造成的，再决定这块内容用不用真的界面工具
+    onContentsTracked()
     apply(item)
   }
 
@@ -389,7 +508,10 @@ export function createAdapter(options: AdapterOptions = {}): Adapter {
     const h = host
     if (!h) return
     const controller = new AbortController()
-    const itemUi = createItemUI(item.el, controller.signal, env, item.kind)
+    // 界面锚点失配时不往元素里插界面（插件拿到的工具什么也不做，不会报错）
+    const itemUi: DomItemUI = unhealthy.has('item-ui')
+      ? noopItemUI()
+      : createItemUI(item.el, controller.signal, env, item.kind)
     item.live = { controller, ui: itemUi }
     const target = { el: item.el, ui: itemUi, signal: controller.signal }
     if (item.content && item.handle) h.addContent(item.content, { ...target, handle: item.handle })
@@ -414,6 +536,8 @@ export function createAdapter(options: AdapterOptions = {}): Adapter {
   function onRoute(url: string): void {
     if (disposed || withoutHash(url) === withoutHash(page.url)) return
     page = pageInfo(url)
+    // 换了页面：锚点情况可能不同，健康状态重新来过
+    resetHealth()
     if (!host) return
     host.setPage(page)
     reevaluate()
@@ -486,15 +610,19 @@ export function createAdapter(options: AdapterOptions = {}): Adapter {
     clearColumns()
   })
 
+  function describeReport(version?: string): string {
+    const start = shown().find(t => !t.el.matches('.QuestionHeader'))?.el
+    return describePage(doc, { page, version, start, health: healthSummary() })
+  }
+
   return {
     contents,
     store,
     theme,
 
-    describe(version) {
-      const start = shown().find(t => !t.el.matches('.QuestionHeader'))?.el
-      return describePage(doc, { page, version, start })
-    },
+    describe: describeReport,
+
+    health: healthSummary,
 
     start(h) {
       if (host || disposed) return

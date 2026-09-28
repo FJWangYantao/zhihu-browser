@@ -4,6 +4,7 @@
 
 import type { PageInfo } from '@zhihu-browser/sdk'
 import { backgroundLuminance, hasOwnText, luminance, parseColor, skipForDark, unreadableColor } from './dom/dark-patch'
+import { FEATURE_NAMES, type HealthSummary } from './health'
 
 /** 统计命中数的选择器：dom/anchors.ts 和 theme.css 里用到的类名 */
 export const DIAGNOSE_ANCHORS = [
@@ -153,6 +154,8 @@ export interface DiagnoseOptions {
   version?: string
   /** 从哪块内容开始往上看；不提供时用页面上的第一块内容 */
   start?: Element
+  /** 锚点健康检查的结果（见 health.ts）；不提供时不写这一节 */
+  health?: HealthSummary
 }
 
 /** 生成诊断信息（纯文本） */
@@ -171,6 +174,19 @@ export function describePage(doc: Document, options: DiagnoseOptions): string {
 
   lines.push('', '锚点命中数：')
   for (const selector of DIAGNOSE_ANCHORS) lines.push(`  ${selector}  ${doc.querySelectorAll(selector).length}`)
+
+  if (options.health) {
+    const health = options.health
+    lines.push('', '健康检查（每类页面应命中的锚点数，见 health.ts 的声明）：')
+    if (!health.anchors.length) lines.push('  当前页面类型没有声明')
+    for (const a of health.anchors)
+      lines.push(`  ${a.selector}  ${a.matched}（期望 ${a.expected}）${a.healthy ? '✓' : '✗'}`)
+    lines.push(
+      health.disabledFeatures.length
+        ? `  已停用的功能：${health.disabledFeatures.map(f => FEATURE_NAMES[f]).join('、')}`
+        : '  功能全部正常',
+    )
+  }
 
   const start =
     options.start ??

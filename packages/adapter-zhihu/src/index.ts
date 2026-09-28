@@ -7,6 +7,18 @@ export type { ToIsolated, ToMain } from './bridge'
 export { DIAGNOSE_ANCHORS, type DiagnoseOptions, describeElement, describePage } from './diagnose'
 export { findSidebar } from './dom/anchors'
 export { classify, type Endpoint, type Filters, type ProcessResult, processResponse } from './endpoints'
+export {
+  ANCHOR_SPECS,
+  type AnchorExpect,
+  type AnchorHealth,
+  type AnchorSpec,
+  checkAnchors,
+  FEATURE_NAMES,
+  type FeatureId,
+  type HealthReport,
+  type HealthStage,
+  type HealthSummary,
+} from './health'
 export { type Adapter, type AdapterOptions, createAdapter } from './isolated'
 export { toAuthor, toComment, toContent, toFeedItem, toSearchResult } from './normalize'
 export { keyOf, parseContentUrl, type Ref } from './refs'
