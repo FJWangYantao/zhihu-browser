@@ -4,6 +4,7 @@
 
 export { DATA_API } from './api-urls'
 export type { ToIsolated, ToMain } from './bridge'
+export { DIAGNOSE_ANCHORS, type DiagnoseOptions, describeElement, describePage } from './diagnose'
 export { findSidebar } from './dom/anchors'
 export { classify, type Endpoint, type Filters, type ProcessResult, processResponse } from './endpoints'
 export { type Adapter, type AdapterOptions, createAdapter } from './isolated'

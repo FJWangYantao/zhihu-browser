@@ -254,7 +254,13 @@ await check('命令面板：Ctrl+K 打开，列出插件命令和内置命令；
   await home.keyboard.press('Control+k')
   await palette.waitFor({ timeout: 5000 })
   const titles = await palette.locator('[role="option"] .title').allTextContents()
-  assert.deepEqual(titles, [...SHORTCUTS.map(([, title]) => title), '查看快捷键', '插件状态与日志', '打开设置页'])
+  assert.deepEqual(titles, [
+    ...SHORTCUTS.map(([, title]) => title),
+    '查看快捷键',
+    '插件状态与日志',
+    '打开设置页',
+    '页面结构诊断',
+  ])
   // 命令和快捷键的标题相同：命令旁边显示快捷键
   assert.equal(await palette.locator('[role="option"]').first().locator('kbd').textContent(), 'J')
   await home.keyboard.press('Escape')
@@ -410,6 +416,36 @@ await check('主题：跟随系统的浅色 / 暗色', async () => {
   await setTheme({})
   await waitFor(question, () => !document.documentElement.hasAttribute('data-theme'))
   assert.equal((await look(question)).fontSize, '15px')
+})
+
+await check('主题：右侧栏的类名对不上时，按位置找到并隐藏', async () => {
+  // 模拟的首页右侧栏只有自动生成的类名，主栏外面还包着一层
+  const sidebar = () => home.evaluate(() => getComputedStyle(document.querySelector('.css-1qyytj7')).display)
+  assert.equal(await sidebar(), 'block')
+  await setTheme({ hideSidebar: true })
+  await waitFor(home, () => getComputedStyle(document.querySelector('.css-1qyytj7')).display === 'none')
+  // 外框收缩到主栏的宽度并居中
+  const gap = await home.evaluate(() => {
+    const r = document.querySelector('.Topstory-mainColumn').getBoundingClientRect()
+    return Math.round(r.left - (document.documentElement.clientWidth - r.right))
+  })
+  assert.ok(Math.abs(gap) <= 1, `主栏左右两边的空白相差 ${gap}px`)
+  await setTheme({})
+  await waitFor(home, () => getComputedStyle(document.querySelector('.css-1qyytj7')).display === 'block')
+})
+
+await check('命令面板：页面结构诊断，只有标签名、类名和尺寸', async () => {
+  await runCommand('页面结构诊断')
+  const report = home.locator('#zb-root .sheet textarea')
+  await report.waitFor({ timeout: 5000 })
+  const text = await report.inputValue()
+  assert.match(text, /页面类型：home/)
+  assert.match(text, /\.Topstory-mainColumn {2}1\n/)
+  // 右侧栏作为主栏那一支的兄弟元素列出来
+  assert.match(text, /· div\.css-1qyytj7(\[data-zb-side\])? {2}\d+×\d+ block/)
+  for (const secret of ['普通问题', '用户1', 'user-1', 'answer:1', 'zhihu.com'])
+    assert.ok(!text.includes(secret), secret)
+  await home.keyboard.press('Escape')
 })
 
 /** 页面上显示着的内容，按顺序 */

@@ -1,0 +1,143 @@
+// 页面结构诊断：在真实知乎上核对锚点用（例如主题用到的两栏布局类名）。
+// 只记录标签名、类名、尺寸、显示方式和锚点命中数，不记录任何文字、链接、属性值和内容 id；
+// 用户在面板里看过之后自己决定复制给谁，扩展不会上传。
+
+import type { PageInfo } from '@zhihu-browser/sdk'
+
+/** 统计命中数的选择器：dom/anchors.ts 和 theme.css 里用到的类名 */
+export const DIAGNOSE_ANCHORS = [
+  '.ContentItem',
+  '.HotItem',
+  '.QuestionHeader',
+  '[data-zop]',
+  '.ContentItem-title',
+  '.RichText',
+  '.ContentItem-actions',
+  '.ContentItem-more',
+  '.ContentItem-rightButton',
+  '.AppHeader',
+  '.Topstory-container',
+  '.Topstory-mainColumn',
+  '.GlobalSideBar',
+  '.Question-main',
+  '.Question-mainColumn',
+  '.Question-sideColumn',
+  '.QuestionHeader-content',
+  '.QuestionHeader-main',
+  '.QuestionHeader-side',
+  '.Search-container',
+  '.SearchMain',
+  '.SearchSideBar',
+  '.Profile-main',
+  '.Profile-mainColumn',
+  '.Profile-sideColumn',
+  '.ContentLayout',
+  '.ContentLayout-mainColumn',
+  '.ContentLayout-sideColumn',
+  '.Post-Header',
+  '.Post-Title',
+  '.Post-RichTextContainer',
+  '[data-zb-columns]',
+  '[data-zb-side]',
+]
+
+const SKIP_TAGS = new Set(['script', 'style', 'link', 'meta', 'noscript', 'template'])
+/** 每一层最多列出多少个兄弟元素 */
+const MAX_CHILDREN = 12
+/** 第一块内容的内部结构往下展开几层 */
+const CONTENT_DEPTH = 3
+
+/** 元素的写法：标签名、短的英文 id、类名、我们加的标记（只写名字，不写值） */
+export function describeElement(el: Element): string {
+  const tag = el.tagName.toLowerCase()
+  // 带数字的 id 可能是内容 id，不写
+  const id = /^[A-Za-z][A-Za-z_-]{0,30}$/.test(el.id) ? `#${el.id}` : ''
+  const classes = [...el.classList]
+    .filter(c => /^[\w-]{1,48}$/.test(c))
+    .map(c => `.${c}`)
+    .join('')
+  const marks = [...el.attributes]
+    .filter(a => a.name.startsWith('data-zb-'))
+    .map(a => `[${a.name}]`)
+    .join('')
+  return `${tag}${id}${classes}${marks}`
+}
+
+function box(el: Element): string {
+  const r = el.getBoundingClientRect()
+  const display = el.ownerDocument.defaultView?.getComputedStyle(el).display ?? ''
+  return `${Math.round(r.width)}×${Math.round(r.height)}${display ? ` ${display}` : ''}`
+}
+
+/** 从 el 往下列出子元素：path 上的元素（▶）接着往下展开，其他的再展开 expand 层；depth 是缩进 */
+function tree(el: Element, path: ReadonlySet<Element>, depth: number, expand: number, lines: string[]): void {
+  const children = [...el.children].filter(c => !SKIP_TAGS.has(c.tagName.toLowerCase()))
+  const indent = '  '.repeat(depth)
+  let listed = 0
+  let skipped = 0
+  for (const child of children) {
+    const onPath = path.has(child)
+    if (!onPath && listed >= MAX_CHILDREN) {
+      skipped++
+      continue
+    }
+    if (!onPath) listed++
+    lines.push(`${indent}${onPath ? '▶ ' : '· '}${describeElement(child)}  ${box(child)}`)
+    if (onPath || expand > 0) tree(child, path, depth + 1, onPath ? expand : expand - 1, lines)
+  }
+  if (skipped) lines.push(`${indent}  …另有 ${skipped} 个`)
+}
+
+function browserName(win: Window): string {
+  const data = (win.navigator as Navigator & { userAgentData?: { brands?: { brand: string; version: string }[] } })
+    .userAgentData
+  const brand = data?.brands?.find(b => /Chrome|Edge|Chromium/.test(b.brand) && !/Not/.test(b.brand))
+  if (brand) return `${brand.brand} ${brand.version}`
+  const m = /(Edg|Firefox|Chrome)\/(\d+)/.exec(win.navigator.userAgent)
+  return m ? `${m[1]} ${m[2]}` : '未知'
+}
+
+export interface DiagnoseOptions {
+  page: PageInfo
+  /** 扩展的版本 */
+  version?: string
+  /** 从哪块内容开始往上看；不提供时用页面上的第一块内容 */
+  start?: Element
+}
+
+/** 生成诊断信息（纯文本） */
+export function describePage(doc: Document, options: DiagnoseOptions): string {
+  const win = doc.defaultView
+  const html = doc.documentElement
+  const lines = ['zhihu-browser 页面结构诊断（只有标签名、类名和尺寸，不含文字、链接和账号信息）']
+  lines.push(`扩展版本：${options.version ?? '未知'} · 页面类型：${options.page.type}`)
+  if (win) {
+    lines.push(`窗口：${win.innerWidth}×${win.innerHeight}，缩放 ${win.devicePixelRatio} · 浏览器：${browserName(win)}`)
+  }
+  const marks = ['data-theme', 'data-zb-tokens', 'data-zb-scheme', 'data-zb-sidebar', 'data-zb-prehide']
+    .filter(name => html.hasAttribute(name))
+    .map(name => `${name}="${html.getAttribute(name)}"`)
+  lines.push(`<html> 上的标记：${marks.join(' ') || '无'}`)
+
+  lines.push('', '锚点命中数：')
+  for (const selector of DIAGNOSE_ANCHORS) lines.push(`  ${selector}  ${doc.querySelectorAll(selector).length}`)
+
+  const start =
+    options.start ??
+    doc.querySelector('[data-zb-id]:not(.QuestionHeader)') ??
+    doc.querySelector('.ContentItem, .HotItem, [data-zop]')
+  const body = doc.body
+  lines.push('', '页面结构（从第一块内容往上到 body，▶ 是包含这块内容的一支，每层列出兄弟元素）：')
+  if (!body || !start || !body.contains(start)) {
+    lines.push('  页面上没有找到内容')
+  } else {
+    // 内容本身不在 path 里：它只列一行，内部结构单独列在后面
+    const path = new Set<Element>()
+    for (let e = start.parentElement; e && e !== body; e = e.parentElement) path.add(e)
+    lines.push(`body  ${box(body)}`)
+    tree(body, path, 1, 0, lines)
+    lines.push('', `第一块内容（${describeElement(start)}）的内部结构：`)
+    tree(start, new Set(), 1, CONTENT_DEPTH - 1, lines)
+  }
+  return lines.join('\n')
+}

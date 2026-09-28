@@ -154,3 +154,38 @@ export function openPluginPanel(ui: PageUI, doc: Document, host: Host): Modal {
   render()
   return modal
 }
+
+/** 页面结构诊断：显示诊断信息，用户看过之后自己复制（扩展不会上传） */
+export function openDiagnosePanel(ui: PageUI, doc: Document, report: string): Modal {
+  const { modal, body } = sheet(ui, doc, '页面结构诊断')
+  const text = h(doc, 'textarea', {
+    class: 'report',
+    readonly: '',
+    rows: '14',
+    spellcheck: 'false',
+    'aria-label': '诊断信息',
+  })
+  text.value = report
+  const copy = h(doc, 'button', { type: 'button', class: 'primary' }, '复制')
+  copy.addEventListener('click', () => {
+    const clipboard = doc.defaultView?.navigator.clipboard
+    const fallback = () => {
+      text.focus()
+      text.select()
+      ui.toast('没能自动复制，已选中全部内容，请按 Ctrl+C（macOS 上是 ⌘C）', { tone: 'warn' })
+    }
+    if (!clipboard) return fallback()
+    clipboard.writeText(report).then(() => ui.toast('已复制', { tone: 'success' }), fallback)
+  })
+  body.append(
+    h(
+      doc,
+      'p',
+      { class: 'note' },
+      '知乎页面上有功能没生效时，可以把下面的内容发给开发者，用来核对页面结构。只包含标签名、类名和尺寸，不含任何文字、链接和账号信息。',
+    ),
+    text,
+    h(doc, 'div', { class: 'buttons' }, copy),
+  )
+  return modal
+}

@@ -420,6 +420,91 @@ describe('评论', () => {
   })
 })
 
+describe('两栏布局', () => {
+  const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+  /** happy-dom 不排版：手动给元素指定位置 */
+  function place(el: Element, x: number, width: number, height: number): void {
+    el.getBoundingClientRect = () =>
+      ({ x, y: 0, left: x, top: 0, width, height, right: x + width, bottom: height }) as DOMRect
+  }
+
+  test('主题要隐藏右侧栏时，按位置找到右侧栏并做标记；销毁后去掉', async () => {
+    s = await setup()
+    const page = html(
+      `<div class="Topstory-container"><div class="wrap">${feedCard('answer', '1')}</div><div class="css-1qyytj7">右侧栏</div></div>`,
+    )
+    s.root.append(page)
+    const side = page.lastElementChild as HTMLElement
+    place(page, 0, 1000, 2000)
+    for (const el of page.querySelectorAll('.wrap, .wrap *')) place(el, 0, 694, 1200)
+    place(side, 704, 296, 900)
+    await wait(150)
+    // 没有要求隐藏右侧栏：不找
+    expect(side.hasAttribute('data-zb-side')).toBe(false)
+
+    const style = html('<style>:root { --zb-sidebar: none }</style>')
+    document.head.append(style)
+    s.adapter.theme.sync()
+    await wait(150)
+    expect(side.hasAttribute('data-zb-side')).toBe(true)
+    expect(page.hasAttribute('data-zb-columns')).toBe(true)
+    s.adapter.dispose()
+    expect(side.hasAttribute('data-zb-side')).toBe(false)
+    expect(page.hasAttribute('data-zb-columns')).toBe(false)
+    style.remove()
+  })
+
+  test('问题页：从回答开始找，不从横跨整个页面的问题开始', async () => {
+    history.replaceState(null, '', '/question/9')
+    const style = html('<style>:root { --zb-sidebar: none }</style>')
+    document.head.append(style)
+    s = await setup()
+    s.adapter.theme.sync()
+    const header = html('<div class="QuestionHeader"><h1 class="QuestionHeader-title">问题</h1></div>')
+    const main = html(
+      `<div class="Question-main"><div class="ListShortcut">${listItem('answer', '1')}</div><div class="side">右侧栏</div></div>`,
+    )
+    s.root.append(header, main)
+    place(header, 0, 1000, 200)
+    for (const el of main.querySelectorAll('.ListShortcut, .ListShortcut *')) place(el, 0, 694, 1200)
+    place(main.lastElementChild as Element, 704, 296, 900)
+    await wait(150)
+    expect(main.lastElementChild?.hasAttribute('data-zb-side')).toBe(true)
+    style.remove()
+  })
+
+  test('换了一页（内容不在原来的布局里）时重新找', async () => {
+    const style = html('<style>:root { --zb-sidebar: none }</style>')
+    document.head.append(style)
+    s = await setup()
+    s.adapter.theme.sync()
+    const first = html(
+      `<div class="a"><div class="wrap">${feedCard('answer', '1')}</div><div class="side">一</div></div>`,
+    )
+    s.root.append(first)
+    for (const el of first.querySelectorAll('.wrap, .wrap *')) place(el, 0, 694, 1200)
+    place(first.lastElementChild as Element, 704, 296, 900)
+    await wait(150)
+    expect(first.lastElementChild?.hasAttribute('data-zb-side')).toBe(true)
+
+    // 知乎把原来那一页留在页面上（不再有内容），内容出现在新的布局里
+    first.querySelector('.Card')?.remove()
+    const second = html(
+      `<div class="b"><div class="wrap">${listItem('answer', '2')}</div><div class="side">二</div></div>`,
+    )
+    s.root.append(second)
+    for (const el of second.querySelectorAll('.wrap, .wrap *')) place(el, 0, 694, 1200)
+    place(second.lastElementChild as Element, 704, 296, 900)
+    await wait(150)
+    expect(second.lastElementChild?.hasAttribute('data-zb-side')).toBe(true)
+    expect(second.hasAttribute('data-zb-columns')).toBe(true)
+    // 原来的标记去掉
+    expect(first.lastElementChild?.hasAttribute('data-zb-side')).toBe(false)
+    expect(first.hasAttribute('data-zb-columns')).toBe(false)
+    style.remove()
+  })
+})
+
 describe('预隐藏与生命周期', () => {
   test('创建时打开预隐藏；插件迟迟没有加载完时超时放行', async () => {
     vi.useFakeTimers()

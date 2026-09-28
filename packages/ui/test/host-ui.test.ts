@@ -19,7 +19,9 @@ afterEach(() => {
   document.body.replaceChildren()
 })
 
-async function setup(options: { platform?: Platform; plugins?: PluginModule[]; paletteKeys?: string } = {}) {
+async function setup(
+  options: { platform?: Platform; plugins?: PluginModule[]; paletteKeys?: string; diagnose?: () => string } = {},
+) {
   const ui = createPageUI(document)
   const host = createHost({
     platform: options.platform ?? 'other',
@@ -44,6 +46,7 @@ async function setup(options: { platform?: Platform; plugins?: PluginModule[]; p
     platform: options.platform ?? 'other',
     paletteKeys: options.paletteKeys,
     openSettings,
+    diagnose: options.diagnose,
   })
   for (const p of options.plugins ?? []) await host.load(p)
   cleanup = () => {
@@ -183,6 +186,37 @@ describe('命令面板', () => {
     type('设置')
     press({ key: 'Enter' }, paletteInput() as HTMLInputElement)
     expect(openSettings).toHaveBeenCalledTimes(1)
+  })
+
+  test('内置命令：页面结构诊断，看过之后复制', async () => {
+    const { hostUI } = await setup({ diagnose: () => '诊断信息\n第二行' })
+    const writeText = vi.fn(async (_text: string) => {})
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    hostUI.openPalette()
+    type('诊断')
+    expect(titles()).toEqual(['页面结构诊断'])
+    press({ key: 'Enter' }, paletteInput() as HTMLInputElement)
+    const sheet = shadow()?.querySelector('.sheet')
+    expect(sheet?.querySelector('h2')?.textContent).toBe('页面结构诊断')
+    expect(sheet?.querySelector('textarea')?.value).toBe('诊断信息\n第二行')
+    sheet?.querySelector<HTMLButtonElement>('button.primary')?.click()
+    await flush()
+    expect(writeText).toHaveBeenCalledWith('诊断信息\n第二行')
+    expect(shadow()?.querySelector('.toast')?.textContent).toBe('已复制')
+
+    // 复制失败：选中全部内容，提示手动复制
+    writeText.mockRejectedValueOnce(new Error('没有权限'))
+    sheet?.querySelector<HTMLButtonElement>('button.primary')?.click()
+    await flush()
+    const text = sheet?.querySelector('textarea') as HTMLTextAreaElement
+    expect([text.selectionStart, text.selectionEnd]).toEqual([0, text.value.length])
+    expect(shadow()?.querySelectorAll('.toast')[1]?.textContent).toMatch(/请按 Ctrl\+C/)
+  })
+
+  test('没有提供诊断时不显示这个命令', async () => {
+    const { hostUI } = await setup()
+    hostUI.openPalette()
+    expect(titles()).not.toContain('页面结构诊断')
   })
 
   test('filterItems：每个词都要匹配；标题开头匹配的排前面', () => {

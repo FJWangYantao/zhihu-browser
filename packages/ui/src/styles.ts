@@ -106,6 +106,11 @@ kbd {
   font: 12px/18px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: rgba(133, 144, 166, 0.1);
   white-space: pre-wrap; word-break: break-word;
 }
+.report {
+  box-sizing: border-box; width: 100%; margin-top: 8px; padding: 8px 10px; resize: vertical;
+  border: 1px solid var(--ui-border); border-radius: 6px; color: inherit; background: rgba(133, 144, 166, 0.1);
+  font: 12px/18px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre;
+}
 .logs [data-level="error"] { color: var(--ui-danger); }
 .logs [data-level="warn"] { color: #b86200; }
 

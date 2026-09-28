@@ -121,7 +121,8 @@ ${body}
 }
 
 const HOME = page(
-  '<div id="root"><header class="AppHeader">知乎</header><main class="Topstory"><div class="Topstory-container"><div class="Topstory-mainColumn"><div id="feed" class="Topstory-recommend"></div></div><div class="GlobalSideBar">右侧栏</div></div></main></div>',
+  // 右侧栏只有自动生成的类名、主栏外面还包着一层：类名对不上时，隐藏右侧栏要靠按位置识别
+  '<div id="root"><header class="AppHeader">知乎</header><main class="Topstory"><div class="Topstory-container"><div class="ListShortcut"><div class="Topstory-mainColumn"><div id="feed" class="Topstory-recommend"></div></div></div><div class="css-1qyytj7">右侧栏</div></div></main></div>',
   {
     entities: { users: { me: { id: 'me', userType: 'people' } } },
   },

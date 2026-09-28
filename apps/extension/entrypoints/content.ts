@@ -60,6 +60,7 @@ export default defineContentScript({
       paletteKeys: state.paletteKeys,
       // 内容脚本不能直接打开设置页，请后台打开
       openSettings: () => void browser.runtime.sendMessage({ type: 'open-options' }).catch(() => {}),
+      diagnose: () => adapter.describe(browser.runtime.getManifest().version),
     })
     for (const plugin of officialPlugins) {
       try {

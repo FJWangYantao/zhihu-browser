@@ -6,6 +6,7 @@
 import type { Host, HostServices } from '@zhihu-browser/core'
 import type { Comment, Content, ContentHandle, Dispose, PageInfo } from '@zhihu-browser/sdk'
 import { ASK_REACT, open, type ReactRef, TO_ISOLATED, TO_MAIN, type ToIsolated, type ToMain } from './bridge'
+import { describePage } from './diagnose'
 import {
   COMMENT_SELECTOR,
   CONTENT_SELECTOR,
@@ -16,6 +17,7 @@ import {
 } from './dom/anchors'
 import { createHandle, HEADER_OFFSET } from './dom/handle'
 import { addFold, createItemUI, type DecorEnv, type DomItemUI } from './dom/item-ui'
+import { type Columns, findColumns } from './dom/layout'
 import { classify, type Filters, processResponse } from './endpoints'
 import { keyOf } from './refs'
 import { isSubject, pageInfo } from './routes'
@@ -39,6 +41,8 @@ export interface Adapter {
   readonly store: ContentStore
   /** 主题 token 的映射：插件的样式有增减之后调用 theme.sync()（见 syncingStyles） */
   readonly theme: ThemeSync
+  /** 页面结构诊断（纯文本，只有标签名、类名和尺寸），version 是扩展的版本 */
+  describe(version?: string): string
   /** 插件已经加载：开始处理接口响应和页面元素 */
   start(host: Host): void
   dispose(): void
@@ -80,8 +84,11 @@ export function createAdapter(options: AdapterOptions = {}): Adapter {
   const hydrationQueue = new Set<() => void>()
   let lastReact: ReactRef[] = []
   let disposed = false
-  const theme = createThemeSync(doc)
+  // 主题要求隐藏右侧栏时，按位置找右侧栏（见 markColumns）
+  const theme = createThemeSync(doc, { onChange: () => scheduleColumns() })
   cleanups.push(theme.dispose)
+  let columns: Columns | undefined
+  let columnsTimer: number | undefined
 
   // ---------- 预隐藏：处理完之前先隐藏内容卡片（样式在 styles.css） ----------
 
@@ -273,6 +280,7 @@ export function createAdapter(options: AdapterOptions = {}): Adapter {
     }
     for (const root of roots) scan(root)
     for (const item of touched) item.live?.ui.repair()
+    scheduleColumns()
   }
 
   const observer = new win.MutationObserver(onMutations)
@@ -418,10 +426,53 @@ export function createAdapter(options: AdapterOptions = {}): Adapter {
     },
   }
 
+  // ---------- 两栏布局：主题隐藏右侧栏时，按位置找右侧栏并做标记（样式在 theme.css） ----------
+
+  const hidingSidebar = () => doc.documentElement?.getAttribute('data-zb-sidebar') === 'none'
+
+  function scheduleColumns(): void {
+    if (columnsTimer !== undefined || disposed || !hidingSidebar()) return
+    columnsTimer = win.setTimeout(() => {
+      columnsTimer = undefined
+      markColumns()
+    }, 100)
+  }
+
+  function markColumns(): void {
+    if (disposed || !hidingSidebar()) return
+    // 问题页顶部的问题横跨整个页面，从下面的回答开始找
+    const start = shown().find(t => !t.el.matches('.QuestionHeader'))?.el
+    if (!start) return
+    // 已经找到、并且还是这一页的布局（右侧栏隐藏之后就没有位置可比了，所以不重新找）
+    if (columns?.side.isConnected && columns.container.contains(start)) return
+    const found = findColumns(start)
+    if (!found) return
+    clearColumns()
+    columns = found
+    found.container.setAttribute('data-zb-columns', '')
+    found.side.setAttribute('data-zb-side', '')
+  }
+
+  function clearColumns(): void {
+    columns?.container.removeAttribute('data-zb-columns')
+    columns?.side.removeAttribute('data-zb-side')
+    columns = undefined
+  }
+
+  cleanups.push(() => {
+    win.clearTimeout(columnsTimer)
+    clearColumns()
+  })
+
   return {
     contents,
     store,
     theme,
+
+    describe(version) {
+      const start = shown().find(t => !t.el.matches('.QuestionHeader'))?.el
+      return describePage(doc, { page, version, start })
+    },
 
     start(h) {
       if (host || disposed) return
@@ -430,6 +481,7 @@ export function createAdapter(options: AdapterOptions = {}): Adapter {
       cleanups.push(h.on('filtersChanged', reevaluate))
       channel.send({ type: 'ready' })
       flushPending()
+      scheduleColumns()
       // 兜底：页面主环境的路由通知丢了也能发现页面切换
       const check = () => onRoute(win.location.href)
       win.addEventListener('popstate', check)

@@ -5,7 +5,7 @@ import type { Dispose } from '@zhihu-browser/sdk'
 import { listenKeys } from './keyboard'
 import type { PageUI } from './page-ui'
 import { openPalette, type PaletteItem } from './palette'
-import { openPluginPanel, openShortcutHelp, sourceName } from './panels'
+import { openDiagnosePanel, openPluginPanel, openShortcutHelp, sourceName } from './panels'
 
 /** 打开命令面板的默认快捷键：macOS 上是 ⌘K，其他系统是 Ctrl+K */
 export const DEFAULT_PALETTE_KEYS = 'mod+k'
@@ -19,6 +19,8 @@ export interface HostUIOptions {
   paletteKeys?: string
   /** 内置命令"打开设置页"；不提供时不显示这个命令 */
   openSettings?: () => void
+  /** 内置命令"页面结构诊断"：生成诊断信息；不提供时不显示这个命令 */
+  diagnose?: () => string
 }
 
 export interface HostUI {
@@ -48,6 +50,15 @@ export function connectHostUI(options: HostUIOptions): HostUI {
   const openSettings = options.openSettings
   if (openSettings) {
     builtins.push({ id: 'zb.settings', title: '打开设置页', keywords: ['设置', '选项', 'settings'], run: openSettings })
+  }
+  const diagnose = options.diagnose
+  if (diagnose) {
+    builtins.push({
+      id: 'zb.diagnose',
+      title: '页面结构诊断',
+      keywords: ['诊断', '排查', '问题', '结构', 'debug'],
+      run: () => openDiagnosePanel(ui, doc, diagnose()),
+    })
   }
 
   function items(): PaletteItem[] {

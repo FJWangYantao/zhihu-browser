@@ -36,6 +36,8 @@ export interface ThemeSyncOptions {
   /** 上面的"一段时间"（毫秒），默认 10000 */
   reapplyWindowMs?: number
   now?: () => number
+  /** <html> 上的标记（设置了哪些 token、配色、右侧栏）变化之后调用 */
+  onChange?: () => void
 }
 
 const SCHEMES = new Set(['light', 'dark'])
@@ -86,9 +88,12 @@ export function createThemeSync(doc: Document, options: ThemeSyncOptions = {}): 
     setAttr('data-theme', value)
   }
 
+  const marks = () => ['data-zb-tokens', 'data-zb-scheme', 'data-zb-sidebar'].map(n => root.getAttribute(n)).join('|')
+
   function check(): void {
     scheduled = false
     if (disposed) return
+    const before = marks()
     const style = win?.getComputedStyle(root)
     const values = new Map<ThemeToken, string>()
     for (const token of THEME_TOKENS) {
@@ -108,6 +113,7 @@ export function createThemeSync(doc: Document, options: ThemeSyncOptions = {}): 
     }
     // 暗色下补上导航栏等样式：只在确实由插件切换了配色时生效
     setAttr('data-zb-scheme', gaveUp ? undefined : forced)
+    if (marks() !== before) options.onChange?.()
   }
 
   function schedule(): void {

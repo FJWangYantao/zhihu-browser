@@ -70,7 +70,25 @@ html[data-zb-tokens~="content-width"] :is(.Post-Header, .Post-RichTextContainer)
   max-width: 100% !important;
 }
 
-/* 右侧栏；问题页顶部的右侧一栏（关注者、被浏览数）一起隐藏，和下面的回答列表对齐 */
+/* 按位置找到的两栏外框（src/dom/layout.ts）：右侧栏隐藏后同样收缩居中 */
+html[data-zb-sidebar="none"] [data-zb-columns] {
+  width: fit-content !important;
+  max-width: 100% !important;
+  margin-right: auto !important;
+  margin-left: auto !important;
+}
+
+/*
+ * 右侧栏。知乎常改右侧栏的类名，所以除了按类名，还隐藏主栏后面的兄弟元素（两栏布局里主栏后面就是右侧栏），
+ * 以及按位置找到的右侧栏（data-zb-side，内容出现之后才能找到）。
+ * 问题页顶部的右侧一栏（关注者、被浏览数）一起隐藏，和下面的回答列表对齐。
+ */
+html[data-zb-sidebar="none"] [data-zb-side],
+html[data-zb-sidebar="none"] .Topstory-mainColumn ~ *,
+html[data-zb-sidebar="none"] .Question-mainColumn ~ *,
+html[data-zb-sidebar="none"] .SearchMain ~ *,
+html[data-zb-sidebar="none"] .Profile-mainColumn ~ *,
+html[data-zb-sidebar="none"] .ContentLayout-mainColumn ~ *,
 html[data-zb-sidebar="none"] .GlobalSideBar,
 html[data-zb-sidebar="none"] .Question-sideColumn,
 html[data-zb-sidebar="none"] .QuestionHeader-side,

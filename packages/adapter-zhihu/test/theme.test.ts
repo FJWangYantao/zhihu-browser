@@ -237,6 +237,25 @@ describe('主题 token', () => {
     expect(attrs().tokens).toBeNull()
   })
 
+  test('<html> 上的标记变化时通知，没有变化时不通知', async () => {
+    const onChange = vi.fn()
+    sync = createThemeSync(document, { onChange })
+    sync.sync()
+    await flush()
+    expect(onChange).not.toHaveBeenCalled()
+    const remove = addStyle(':root { --zb-sidebar: none }')
+    sync.sync()
+    await flush()
+    expect(onChange).toHaveBeenCalledTimes(1)
+    sync.sync()
+    await flush()
+    expect(onChange).toHaveBeenCalledTimes(1)
+    remove()
+    sync.sync()
+    await flush()
+    expect(onChange).toHaveBeenCalledTimes(2)
+  })
+
   test('syncingStyles：样式增减之后重新检查，移除只生效一次', () => {
     const theme = { sync: vi.fn(), dispose() {} }
     const removed = vi.fn()
@@ -282,7 +301,8 @@ describe('映射样式（theme.css）', () => {
     <header class="AppHeader"></header>
     <div class="QuestionHeader"><div class="QuestionHeader-content"><div class="QuestionHeader-main"><h1 class="QuestionHeader-title">问题</h1></div><div class="QuestionHeader-side"></div></div></div>
     <div class="Question-main"><div class="Question-mainColumn"><div class="ContentItem"><h2 class="ContentItem-title">标题</h2><div class="RichText">正文</div></div></div><div class="Question-sideColumn"></div></div>
-    <div class="Topstory-container"><div class="Topstory-mainColumn"></div><div class="GlobalSideBar"></div></div>
+    <div class="Topstory-container"><div class="Topstory-mainColumn"></div><div class="GlobalSideBar"></div><div class="css-1qyytj7"></div></div>
+    <div class="Search-container" data-zb-columns><div class="wrap"><div class="SearchMain"></div></div><div class="css-2" data-zb-side></div></div>
     <article class="Post-Main"><header class="Post-Header"><h1 class="Post-Title">文章</h1></header><div class="Post-RichTextContainer"></div></article>`
   const selectors = [
     'html',
@@ -298,6 +318,10 @@ describe('映射样式（theme.css）', () => {
     '.Topstory-container',
     '.Topstory-mainColumn',
     '.GlobalSideBar',
+    '.css-1qyytj7',
+    '.Search-container',
+    '.wrap',
+    '.css-2',
     '.Post-Header',
     '.Post-Title',
     '.Post-RichTextContainer',
@@ -343,9 +367,12 @@ describe('映射样式（theme.css）', () => {
     expect(declared('.GlobalSideBar')).toEqual({})
 
     render({ 'data-zb-tokens': 'sidebar', 'data-zb-sidebar': 'none' })
-    for (const side of ['.GlobalSideBar', '.Question-sideColumn', '.QuestionHeader-side']) {
-      expect(declared(side)).toEqual({ display: 'none' })
+    // 按类名、主栏后面的兄弟元素、按位置找到的（data-zb-side）
+    for (const side of ['.GlobalSideBar', '.Question-sideColumn', '.QuestionHeader-side', '.css-1qyytj7', '.css-2']) {
+      expect([side, declared(side)]).toEqual([side, { display: 'none' }])
     }
+    expect(declared('.wrap')).toEqual({})
+    expect(declared('.Search-container')).toMatchObject({ width: 'fit-content' })
     // 只隐藏右侧栏时，外框同样收缩居中，主栏保持知乎的宽度
     expect(declared('.Question-main')).toMatchObject({ width: 'fit-content' })
     expect(declared('.Question-mainColumn')).toEqual({})

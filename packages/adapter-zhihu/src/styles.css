@@ -46,6 +46,8 @@ html[data-zb-prehide] :is(.ContentItem, .HotItem):not([data-zb-done]) {
   gap: 4px;
   margin: 0 6px;
   vertical-align: middle;
+  /* 标签放在标题里，不跟着主题改成正文字体 */
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
   font-weight: normal;
 }
 
