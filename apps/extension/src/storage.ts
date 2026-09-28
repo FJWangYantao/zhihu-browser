@@ -5,15 +5,21 @@
 //   data:<插件 id>:<键>        插件存储（z.storage）
 //   plugins                  各插件的启用状态 { [插件 id]: { enabled: boolean } }
 //   safeMode                 安全模式（boolean）
+//   keymap                   用户改过的快捷键 { [快捷键 id]: 新的写法 }，空字符串表示停用
+//   paletteKeys              打开命令面板的快捷键；没有时用默认的 mod+k，空字符串表示不用快捷键
+//   registry                 知乎页面上登记的快捷键（由内容脚本写入，设置页据此列出可以改的快捷键）
 //
 // 官方插件在扩展隔离环境里直接读写这里，不经过后台：后台可能被浏览器回收，不能放在插件启动的关键路径上。
 
-import type { SettingsBackend, StorageBackend } from '@zhihu-browser/core'
+import type { Keymap, Platform, SettingsBackend, ShortcutInfo, StorageBackend } from '@zhihu-browser/core'
 
 export const SETTINGS_PREFIX = 'settings:'
 export const DATA_PREFIX = 'data:'
 export const PLUGINS_KEY = 'plugins'
 export const SAFE_MODE_KEY = 'safeMode'
+export const KEYMAP_KEY = 'keymap'
+export const PALETTE_KEYS_KEY = 'paletteKeys'
+export const REGISTRY_KEY = 'registry'
 
 export type PluginStates = Record<string, { enabled: boolean }>
 
@@ -98,11 +104,48 @@ export function createStorageBackend(api: StorageApi): StorageBackend {
 export interface ExtensionState {
   safeMode: boolean
   plugins: PluginStates
+  keymap: Keymap
+  /** 没有设置过时是 undefined（用默认的） */
+  paletteKeys?: string
 }
 
 export async function readState(api: StorageApi): Promise<ExtensionState> {
-  const stored = await api.local.get([SAFE_MODE_KEY, PLUGINS_KEY])
-  return { safeMode: stored[SAFE_MODE_KEY] === true, plugins: toPluginStates(stored[PLUGINS_KEY]) }
+  const stored = await api.local.get([SAFE_MODE_KEY, PLUGINS_KEY, KEYMAP_KEY, PALETTE_KEYS_KEY])
+  const paletteKeys = stored[PALETTE_KEYS_KEY]
+  return {
+    safeMode: stored[SAFE_MODE_KEY] === true,
+    plugins: toPluginStates(stored[PLUGINS_KEY]),
+    keymap: toKeymap(stored[KEYMAP_KEY]),
+    ...(typeof paletteKeys === 'string' ? { paletteKeys } : {}),
+  }
+}
+
+export function toKeymap(value: unknown): Keymap {
+  const out: Keymap = {}
+  if (!isRecord(value)) return out
+  for (const [id, keys] of Object.entries(value)) if (typeof keys === 'string') out[id] = keys
+  return out
+}
+
+/** 知乎页面上登记的快捷键，写给设置页看 */
+export interface Registry {
+  platform: Platform
+  shortcuts: ShortcutInfo[]
+}
+
+export function toRegistry(value: unknown): Registry | undefined {
+  if (!isRecord(value) || (value.platform !== 'mac' && value.platform !== 'other') || !Array.isArray(value.shortcuts)) {
+    return undefined
+  }
+  return value as unknown as Registry
+}
+
+/** 写入登记的快捷键；和已有的一样时不写，免得每个标签页打开时都触发一次变化通知 */
+export async function saveRegistry(api: StorageApi, registry: Registry): Promise<boolean> {
+  const current = (await api.local.get(REGISTRY_KEY))[REGISTRY_KEY]
+  if (JSON.stringify(current) === JSON.stringify(registry)) return false
+  await api.local.set({ [REGISTRY_KEY]: registry })
+  return true
 }
 
 export function toPluginStates(value: unknown): PluginStates {

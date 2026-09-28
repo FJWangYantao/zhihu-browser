@@ -26,6 +26,11 @@ const ACTIONS_SELECTOR = '.ContentItem-actions'
 /** 全局挂载点 sidebar：页面的右侧栏 */
 export const SIDEBAR_SELECTOR = '.Question-sideColumn, .GlobalSideBar'
 
+/** 页面的右侧栏；没有时返回 null */
+export function findSidebar(doc: Document = document): Element | null {
+  return doc.querySelector(SIDEBAR_SELECTOR)
+}
+
 /** 是需要识别的内容元素：嵌套在另一个内容元素里的不算 */
 export function isContentElement(el: Element): boolean {
   if (!el.matches(CONTENT_SELECTOR)) return false

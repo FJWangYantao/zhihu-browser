@@ -100,8 +100,8 @@ export async function setup(
       fetch: async () => {
         throw new Error('测试里不访问网络')
       },
-      ui: adapter.ui,
-      addStyle: css => adapter.ui.addStyle(css),
+      ui: { toast() {}, confirm: async () => true, mount: () => () => {} },
+      addStyle: () => () => {},
       contents: adapter.contents,
       log: () => {},
     },

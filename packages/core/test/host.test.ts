@@ -546,6 +546,110 @@ describe('命令与快捷键', () => {
   })
 })
 
+describe('按键', () => {
+  const setupKeys = async (options: Parameters<typeof setup>[0] = {}) => {
+    const t = setup(options)
+    t.host.setPage(page('home'))
+    const calls: string[] = []
+    await t.host.load(
+      plugin({ id: 'nav' }, z => {
+        z.registerShortcut('j', () => calls.push('j'), { description: '下一条' })
+        z.registerShortcut('g g', () => calls.push('gg'), { description: '回到顶部' })
+        z.registerShortcut('g h', () => calls.push('gh'), { description: '回到首页' })
+        z.registerShortcut('mod+enter', () => calls.push('mod+enter'), { description: '确定' })
+      }),
+    )
+    return { ...t, calls }
+  }
+
+  test('单个按键和按键序列', async () => {
+    const { host, calls } = await setupKeys()
+    expect(host.handleKey('j')).toBe('run')
+    expect(host.handleKey('g')).toBe('pending')
+    expect(host.handleKey('g')).toBe('run')
+    expect(host.handleKey('g')).toBe('pending')
+    expect(host.handleKey('h')).toBe('run')
+    expect(host.handleKey('x')).toBe('none')
+    expect(calls).toEqual(['j', 'gg', 'gh'])
+  })
+
+  test('序列没对上时，这次按键单独再判断一次；超时后从头开始', async () => {
+    const { host, calls, advance } = await setupKeys()
+    expect(host.handleKey('g')).toBe('pending')
+    expect(host.handleKey('j')).toBe('run')
+    expect(calls).toEqual(['j'])
+    expect(host.handleKey('g')).toBe('pending')
+    advance(1500)
+    expect(host.handleKey('g')).toBe('pending')
+    expect(host.handleKey('g')).toBe('run')
+    expect(calls).toEqual(['j', 'gg'])
+    // 写法不对的按键丢掉输到一半的序列
+    host.handleKey('g')
+    expect(host.handleKey('hyper+x')).toBe('none')
+    expect(host.handleKey('g')).toBe('pending')
+  })
+
+  test('mod 在 macOS 上是 ⌘，其他系统上是 Ctrl', async () => {
+    const mac = await setupKeys({ platform: 'mac' })
+    expect(mac.host.handleKey('ctrl+enter')).toBe('none')
+    expect(mac.host.handleKey('meta+enter')).toBe('run')
+    const other = await setupKeys()
+    expect(other.host.handleKey('meta+enter')).toBe('none')
+    expect(other.host.handleKey('Ctrl+Enter')).toBe('run')
+    expect(other.host.runShortcut('mod+enter')).toBe(true)
+  })
+
+  test('宿主的快捷键优先，和它冲突的插件快捷键会被标出来', async () => {
+    const { host, calls } = await setupKeys()
+    const palette = vi.fn()
+    host.registerHostShortcut('ctrl+enter', palette, { description: '打开命令面板' })
+    await flush()
+    expect(host.handleKey('ctrl+enter')).toBe('run')
+    expect(palette).toHaveBeenCalledTimes(1)
+    expect(calls).toEqual([])
+    const infos = host.shortcuts()
+    expect(infos[0]).toMatchObject({ pluginId: '@host', keys: 'ctrl+enter', description: '打开命令面板' })
+    expect(infos.find(i => i.id === 'nav:mod+enter')).toMatchObject({ conflictWith: '@host' })
+  })
+
+  test('宿主快捷键出错不会影响页面', async () => {
+    const { host } = setup()
+    host.registerHostShortcut(
+      'ctrl+k',
+      () => {
+        throw new Error('坏了')
+      },
+      { description: '坏' },
+    )
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    expect(host.handleKey('ctrl+k')).toBe('run')
+    expect(error).toHaveBeenCalled()
+    error.mockRestore()
+  })
+
+  test('用户改键、停用；改键的写法不对时沿用默认的', async () => {
+    const { host, calls } = await setupKeys({ keymap: { 'nav:j': 'n' } })
+    expect(host.handleKey('j')).toBe('none')
+    expect(host.handleKey('n')).toBe('run')
+    expect(calls).toEqual(['j'])
+    const changed = vi.fn()
+    host.on('shortcutsChanged', changed)
+    host.setKeymap({ 'nav:j': '', 'nav:g g': 'hyper+x' })
+    await flush()
+    expect(changed).toHaveBeenCalledTimes(1)
+    expect(host.handleKey('n')).toBe('none')
+    expect(host.shortcuts().find(i => i.id === 'nav:j')).toMatchObject({ keys: '', defaultKeys: 'j', disabled: true })
+    expect(host.shortcuts().find(i => i.id === 'nav:g g')?.keys).toBe('g g')
+  })
+
+  test('改键后和别的插件撞上，也会标出冲突', async () => {
+    const { host } = await setupKeys()
+    await host.load(plugin({ id: 'other' }, z => void z.registerShortcut('k', () => {}, { description: '上一条' })))
+    host.setKeymap({ 'other:k': 'j' })
+    expect(host.shortcuts().find(i => i.id === 'other:k')).toMatchObject({ keys: 'j', conflictWith: 'nav' })
+  })
+})
+
 describe('存储与网络', () => {
   test('存储按插件隔离，值必须能被 JSON 序列化', async () => {
     const { host } = setup()

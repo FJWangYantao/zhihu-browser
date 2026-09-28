@@ -1,22 +1,28 @@
 import '@zhihu-browser/adapter-zhihu/styles.css'
-import { createAdapter } from '@zhihu-browser/adapter-zhihu'
+import { createAdapter, findSidebar } from '@zhihu-browser/adapter-zhihu'
 import { createHost } from '@zhihu-browser/core'
+import { connectHostUI, createPageUI, DEFAULT_PALETTE_KEYS } from '@zhihu-browser/ui'
 import { browser } from 'wxt/browser'
 import { defineContentScript } from 'wxt/utils/define-content-script'
+import { detectPlatform } from '../src/platform'
 import { officialPlugins } from '../src/plugins'
 import {
   createSettingsBackend,
   createStorageBackend,
   isEnabled,
+  KEYMAP_KEY,
+  PALETTE_KEYS_KEY,
   PLUGINS_KEY,
   readState,
   SAFE_MODE_KEY,
   type StorageApi,
+  saveRegistry,
+  toKeymap,
   toPluginStates,
   watch,
 } from '../src/storage'
 
-// 扩展隔离环境（ISOLATED world）：插件宿主、知乎适配层和官方插件从这里启动。
+// 扩展隔离环境（ISOLATED world）：插件宿主、知乎适配层、核心界面和官方插件从这里启动。
 export default defineContentScript({
   matches: ['*://*.zhihu.com/*'],
   runAt: 'document_start',
@@ -25,20 +31,33 @@ export default defineContentScript({
   async main() {
     // 先创建适配层：打开预隐藏、开始观察页面，插件加载好之前出现的内容先排队
     const adapter = createAdapter()
+    const ui = createPageUI(document, { sidebar: () => findSidebar(document) })
     const api = browser.storage as unknown as StorageApi
     const state = await readState(api)
+    const platform = detectPlatform()
     const host = createHost({
       safeMode: state.safeMode,
+      platform,
+      keymap: state.keymap,
       services: {
         settings: createSettingsBackend(api),
         storage: createStorageBackend(api),
         fetch: async () => {
           throw new Error('z.fetch 还没有实现（计划在 M2 提供）')
         },
-        ui: adapter.ui,
-        addStyle: css => adapter.ui.addStyle(css),
+        ui,
+        addStyle: css => ui.addStyle(css),
         contents: adapter.contents,
       },
+    })
+    const hostUI = connectHostUI({
+      doc: document,
+      host,
+      ui,
+      platform,
+      paletteKeys: state.paletteKeys,
+      // 内容脚本不能直接打开设置页，请后台打开
+      openSettings: () => void browser.runtime.sendMessage({ type: 'open-options' }).catch(() => {}),
     })
     for (const plugin of officialPlugins) {
       try {
@@ -49,7 +68,18 @@ export default defineContentScript({
     }
     adapter.start(host)
 
-    // 在设置页里启用 / 停用插件：立即生效，不用刷新页面
+    // 把登记的快捷键写给设置页（设置页据此列出可以改的快捷键）
+    let registryTimer: ReturnType<typeof setTimeout> | undefined
+    const publishRegistry = () => {
+      clearTimeout(registryTimer)
+      registryTimer = setTimeout(() => {
+        void saveRegistry(api, { platform, shortcuts: host.shortcuts() }).catch(() => {})
+      }, 500)
+    }
+    host.on('shortcutsChanged', publishRegistry)
+    publishRegistry()
+
+    // 在设置页里启用 / 停用插件、改键：立即生效，不用刷新页面
     watch(
       api,
       key => key === PLUGINS_KEY,
@@ -66,9 +96,19 @@ export default defineContentScript({
     )
     watch(
       api,
+      key => key === KEYMAP_KEY,
+      (_key, value) => host.setKeymap(toKeymap(value)),
+    )
+    watch(
+      api,
+      key => key === PALETTE_KEYS_KEY,
+      (_key, value) => hostUI.setPaletteKeys(typeof value === 'string' ? value : DEFAULT_PALETTE_KEYS),
+    )
+    watch(
+      api,
       key => key === SAFE_MODE_KEY,
       (_key, value) => {
-        if ((value === true) !== state.safeMode) adapter.ui.toast('安全模式在刷新页面后生效')
+        if ((value === true) !== state.safeMode) ui.toast('安全模式在刷新页面后生效')
       },
     )
   },

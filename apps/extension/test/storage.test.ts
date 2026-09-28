@@ -4,48 +4,12 @@ import {
   createStorageBackend,
   isEnabled,
   readState,
-  type StorageApi,
+  saveRegistry,
+  toKeymap,
   toPluginStates,
+  toRegistry,
 } from '../src/storage'
-
-/** 内存里的 chrome.storage：只实现用到的部分 */
-function fakeStorage(initial: Record<string, unknown> = {}) {
-  const data = new Map(Object.entries(structuredClone(initial)))
-  type Listener = Parameters<StorageApi['onChanged']['addListener']>[0]
-  const listeners = new Set<Listener>()
-  const emit = (changes: Record<string, { newValue?: unknown; oldValue?: unknown }>, area = 'local') => {
-    for (const fn of listeners) fn(changes, area)
-  }
-  const api: StorageApi = {
-    local: {
-      async get(keys) {
-        const list = keys === null ? [...data.keys()] : Array.isArray(keys) ? keys : [keys]
-        return Object.fromEntries(list.filter(k => data.has(k)).map(k => [k, structuredClone(data.get(k))]))
-      },
-      async set(items) {
-        const changes: Record<string, { newValue?: unknown; oldValue?: unknown }> = {}
-        for (const [k, v] of Object.entries(items)) {
-          changes[k] = { oldValue: data.get(k), newValue: structuredClone(v) }
-          data.set(k, structuredClone(v))
-        }
-        emit(changes)
-      },
-      async remove(keys) {
-        const changes: Record<string, { oldValue?: unknown }> = {}
-        for (const k of Array.isArray(keys) ? keys : [keys]) {
-          changes[k] = { oldValue: data.get(k) }
-          data.delete(k)
-        }
-        emit(changes)
-      },
-    },
-    onChanged: {
-      addListener: fn => listeners.add(fn),
-      removeListener: fn => listeners.delete(fn),
-    },
-  }
-  return { api, data, emit, listeners }
-}
+import { fakeStorage } from './fake-storage'
 
 describe('设置', () => {
   test('按插件 id 读写', async () => {
@@ -92,10 +56,33 @@ test('插件存储：按插件隔离，keys 只列出自己的', async () => {
 test('启用状态和安全模式', async () => {
   const { api } = fakeStorage({ safeMode: true, plugins: { filter: { enabled: false }, bad: { enabled: 'yes' } } })
   const state = await readState(api)
-  expect(state).toEqual({ safeMode: true, plugins: { filter: { enabled: false } } })
+  expect(state).toEqual({ safeMode: true, plugins: { filter: { enabled: false } }, keymap: {} })
   expect(isEnabled(state.plugins, 'filter')).toBe(false)
   // 没有记录的插件默认启用
   expect(isEnabled(state.plugins, 'theme')).toBe(true)
   expect(toPluginStates(null)).toEqual({})
   expect((await readState(fakeStorage().api)).safeMode).toBe(false)
+})
+
+test('快捷键：改键表和命令面板的快捷键', async () => {
+  const { api } = fakeStorage({ keymap: { 'nav:j': 'n', 'nav:k': 1 }, paletteKeys: '' })
+  const state = await readState(api)
+  expect(state.keymap).toEqual({ 'nav:j': 'n' })
+  expect(state.paletteKeys).toBe('')
+  expect(toKeymap(['x'])).toEqual({})
+  expect((await readState(fakeStorage().api)).paletteKeys).toBeUndefined()
+})
+
+test('登记的快捷键：只在有变化时写入', async () => {
+  const { api, writes } = fakeStorage()
+  const registry = {
+    platform: 'other' as const,
+    shortcuts: [{ id: 'nav:j', keys: 'j', defaultKeys: 'j', pluginId: 'nav', description: '下一条' }],
+  }
+  expect(await saveRegistry(api, registry)).toBe(true)
+  expect(await saveRegistry(api, structuredClone(registry))).toBe(false)
+  expect(writes).toHaveLength(1)
+  expect(toRegistry((await api.local.get('registry')).registry)).toEqual(registry)
+  expect(toRegistry({ platform: 'linux', shortcuts: [] })).toBeUndefined()
+  expect(toRegistry(null)).toBeUndefined()
 })

@@ -18,7 +18,7 @@ import type {
 import { checkSettingValue, PluginLoadError, sanitizeSettings, validateMeta } from './meta'
 import { Monitor } from './monitor'
 import { checkFetchUrl } from './permissions'
-import { normalizeShortcut, ShortcutRegistry } from './shortcuts'
+import { HOST_OWNER, normalizeShortcut, ShortcutRegistry } from './shortcuts'
 import type {
   CommandInfo,
   ContentTarget,
@@ -27,6 +27,7 @@ import type {
   HostEvents,
   HostOptions,
   ItemTarget,
+  Keymap,
   LogEntry,
   LogLevel,
   PluginInfo,
@@ -66,8 +67,17 @@ export interface Host {
   commands(page?: PageInfo): CommandInfo[]
   runCommand(id: string): Promise<void>
   shortcuts(): ShortcutInfo[]
-  /** 按下快捷键（规范化前后的写法都可以）；有插件处理时返回 true */
+  /** 执行快捷键（可以是完整的按键序列，规范化前后的写法都可以）；有人处理时返回 true */
   runShortcut(keys: string, page?: PageInfo): boolean
+  /**
+   * 处理一次按键（来自键盘事件，只含一步，如 'ctrl+k'、'g'）。
+   * 返回 'run' 表示执行了快捷键，'pending' 表示按键序列还没输完（如 'g g' 的第一个 g），'none' 表示与快捷键无关。
+   */
+  handleKey(stroke: string, page?: PageInfo): 'run' | 'pending' | 'none'
+  /** 用户改键 */
+  setKeymap(keymap: Keymap): void
+  /** 宿主自己的快捷键（如打开命令面板），优先于插件的快捷键 */
+  registerHostShortcut(keys: string, run: () => void, options: { description: string }): Dispose
 
   on<K extends keyof HostEvents>(event: K, listener: (payload: HostEvents[K]) => void): Dispose
   dispose(): void
@@ -185,7 +195,11 @@ export function createHost(options: HostOptions): Host {
   const instances = new Map<string, Instance>()
   const listeners = new Map<keyof HostEvents, Set<(payload: never) => void>>()
   const commands = new Map<string, CommandRecord>()
-  const shortcutRegistry = new ShortcutRegistry()
+  const shortcutRegistry = new ShortcutRegistry(options.platform ?? 'other')
+  if (options.keymap) shortcutRegistry.setKeymap(options.keymap)
+  const sequenceTimeout = options.sequenceTimeoutMs ?? 1000
+  /** 按键序列输到一半：已经按下的部分和时间 */
+  let pendingKeys: { keys: string; at: number } | undefined
   const liveContents = new Set<LiveItem<Content, ContentTarget>>()
   const liveComments = new Set<LiveItem<Comment, ItemTarget>>()
   const pendingEvents = new Set<'filtersChanged' | 'commandsChanged' | 'shortcutsChanged'>()
@@ -467,7 +481,7 @@ export function createHost(options: HostOptions): Host {
         }
         if (!running()) return noop
         const remove = shortcutRegistry.add({
-          keys: canonical,
+          defaultKeys: canonical,
           pluginId: inst.id,
           description: options.description,
           ...(options.when ? { when: [...options.when] } : {}),
@@ -817,6 +831,60 @@ export function createHost(options: HostOptions): Host {
       if (!entry) return false
       entry.run()
       return true
+    },
+
+    handleKey(stroke, page = currentPage) {
+      let step: string
+      try {
+        step = normalizeShortcut(stroke)
+      } catch {
+        pendingKeys = undefined
+        return 'none'
+      }
+      if (step.includes(' ')) return 'none'
+      const t = now()
+      if (pendingKeys && t - pendingKeys.at > sequenceTimeout) pendingKeys = undefined
+      const candidate = pendingKeys ? `${pendingKeys.keys} ${step}` : step
+      const entry = shortcutRegistry.resolve(candidate, page?.type)
+      if (entry) {
+        pendingKeys = undefined
+        entry.run()
+        return 'run'
+      }
+      if (shortcutRegistry.hasPrefix(candidate, page?.type)) {
+        pendingKeys = { keys: candidate, at: t }
+        return 'pending'
+      }
+      if (!pendingKeys) return 'none'
+      // 序列没有对上：丢掉前面的部分，把这次按键单独再判断一次
+      pendingKeys = undefined
+      return host.handleKey(step, page)
+    },
+
+    setKeymap(keymap) {
+      shortcutRegistry.setKeymap(keymap)
+      pendingKeys = undefined
+      schedule('shortcutsChanged')
+    },
+
+    registerHostShortcut(keys, fn, opts) {
+      const remove = shortcutRegistry.add({
+        defaultKeys: normalizeShortcut(keys),
+        pluginId: HOST_OWNER,
+        description: opts.description,
+        run: () => {
+          try {
+            fn()
+          } catch (e) {
+            console.error('[zhihu-browser] 快捷键出错', e)
+          }
+        },
+      })
+      schedule('shortcutsChanged')
+      return () => {
+        remove()
+        schedule('shortcutsChanged')
+      }
     },
 
     on(event, listener) {

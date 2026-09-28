@@ -2,8 +2,10 @@ import type { PluginMeta } from '@zhihu-browser/sdk'
 import { describe, expect, test } from 'vitest'
 import {
   checkFetchUrl,
+  formatShortcut,
   hostMatches,
   normalizeShortcut,
+  resolveMod,
   sanitizeSettings,
   validateMeta,
   validPermission,
@@ -61,12 +63,30 @@ describe('normalizeShortcut', () => {
     ['Cmd+K', 'meta+k'],
     ['Esc', 'escape'],
     ['ctrl+alt+ArrowUp', 'ctrl+alt+up'],
+    ['+', '+'],
+    ['Ctrl++', 'ctrl++'],
+    ['?', '?'],
   ])('%s → %s', (input, expected) => {
     expect(normalizeShortcut(input)).toBe(expected)
   })
 
   test.each([[''], ['hyper+x'], ['shift+'], ['shift+pgup2']])('写法不对：%j', input => {
     expect(() => normalizeShortcut(input)).toThrow()
+  })
+
+  test('mod 按平台解析', () => {
+    expect(resolveMod('mod+k', 'mac')).toBe('meta+k')
+    expect(resolveMod('mod+shift+k g', 'other')).toBe('ctrl+shift+k g')
+    expect(resolveMod('mod+ctrl+k', 'other')).toBe('ctrl+k')
+    expect(resolveMod('shift+j', 'mac')).toBe('shift+j')
+  })
+
+  test('显示写法', () => {
+    expect(formatShortcut('mod+shift+k', 'mac')).toBe('⌘⇧K')
+    expect(formatShortcut('mod+shift+k', 'other')).toBe('Ctrl+Shift+K')
+    expect(formatShortcut('g g', 'other')).toBe('G G')
+    expect(formatShortcut('alt+up', 'mac')).toBe('⌥↑')
+    expect(formatShortcut('escape', 'other')).toBe('Esc')
   })
 })
 

@@ -1,5 +1,8 @@
 import type { PageType } from '@zhihu-browser/sdk'
-import type { ShortcutInfo } from './types'
+import type { Keymap, Platform, ShortcutInfo } from './types'
+
+/** 宿主自己的快捷键（例如打开命令面板）用的"插件 id"。插件 id 不能以 @ 开头，不会重名。 */
+export const HOST_OWNER = '@host'
 
 const MODIFIER_ORDER = ['mod', 'ctrl', 'alt', 'shift', 'meta'] as const
 const MODIFIER_ALIASES: Record<string, (typeof MODIFIER_ORDER)[number]> = {
@@ -50,8 +53,15 @@ export function normalizeShortcut(keys: string): string {
   return steps.map(step => normalizeStep(step, keys)).join(' ')
 }
 
+/** 拆开一步按键；"+" 键本身写成 '+' 或 'shift++' */
+function splitStep(step: string): string[] {
+  if (step === '+') return ['+']
+  if (step.endsWith('++')) return [...step.slice(0, -2).split('+'), '+']
+  return step.split('+')
+}
+
 function normalizeStep(step: string, original: string): string {
-  const parts = step.split('+')
+  const parts = splitStep(step)
   const modifiers = new Set<string>()
   let key: string | undefined
   for (const [i, raw] of parts.entries()) {
@@ -71,8 +81,58 @@ function normalizeStep(step: string, original: string): string {
   return [...ordered, key].join('+')
 }
 
+/** 把 mod 换成具体平台上的修饰键：macOS 上是 meta（⌘），其他系统是 ctrl。参数必须是规范化后的写法。 */
+export function resolveMod(keys: string, platform: Platform): string {
+  if (!keys.includes('mod')) return keys
+  const target = platform === 'mac' ? 'meta' : 'ctrl'
+  return keys
+    .split(' ')
+    .map(step => {
+      const parts = splitStep(step)
+      const key = parts.pop() ?? ''
+      return normalizeStep([...parts.map(m => (m === 'mod' ? target : m)), key].join('+'), keys)
+    })
+    .join(' ')
+}
+
+const MAC_MODIFIERS: Record<string, string> = { mod: '⌘', meta: '⌘', ctrl: '⌃', alt: '⌥', shift: '⇧' }
+const OTHER_MODIFIERS: Record<string, string> = { mod: 'Ctrl', ctrl: 'Ctrl', alt: 'Alt', shift: 'Shift', meta: 'Win' }
+const KEY_LABELS: Record<string, string> = {
+  escape: 'Esc',
+  enter: 'Enter',
+  space: 'Space',
+  tab: 'Tab',
+  backspace: 'Backspace',
+  delete: 'Delete',
+  up: '↑',
+  down: '↓',
+  left: '←',
+  right: '→',
+  pageup: 'PageUp',
+  pagedown: 'PageDown',
+  home: 'Home',
+  end: 'End',
+}
+
+/** 显示给用户看的写法：macOS 上是 ⌘⇧K，其他系统是 Ctrl+Shift+K；按键序列用空格隔开，如 G G。 */
+export function formatShortcut(keys: string, platform: Platform): string {
+  return normalizeShortcut(keys)
+    .split(' ')
+    .map(step => {
+      const parts = splitStep(step)
+      const key = parts.pop() ?? ''
+      const label = KEY_LABELS[key] ?? key.toUpperCase()
+      const names = platform === 'mac' ? MAC_MODIFIERS : OTHER_MODIFIERS
+      const modifiers = parts.map(m => names[m] ?? m)
+      return platform === 'mac' ? [...modifiers, label].join('') : [...modifiers, label].join('+')
+    })
+    .join(' ')
+}
+
 export interface ShortcutEntry {
-  keys: string
+  /** 注册时的写法（规范化后）。用户改键时用它来标识这个快捷键 */
+  defaultKeys: string
+  /** 插件 id；宿主自己的快捷键是 HOST_OWNER */
   pluginId: string
   description: string
   when?: PageType[]
@@ -83,9 +143,20 @@ const overlaps = (a?: PageType[], b?: PageType[]) => !a || !b || a.some(t => b.i
 const applies = (entry: ShortcutEntry, page?: PageType) =>
   !entry.when || (page !== undefined && entry.when.includes(page))
 
-/** 快捷键登记表。多个插件绑定同一个快捷键、且适用页面有重叠时，先注册的生效。 */
+/** 用户改键时用的标识，如 'reader:r' */
+export const shortcutId = (entry: { pluginId: string; defaultKeys: string }) => `${entry.pluginId}:${entry.defaultKeys}`
+
+/**
+ * 快捷键登记表。
+ * - 宿主自己的快捷键优先；插件之间绑定同一个快捷键、且适用页面有重叠时，先注册的生效。
+ * - 用户可以改键（keymap），改成空字符串表示停用。
+ * - 比较时按平台解析 mod：在 Windows 上 'mod+k' 和 'ctrl+k' 是同一个快捷键。
+ */
 export class ShortcutRegistry {
   private entries: ShortcutEntry[] = []
+  private keymap: Keymap = {}
+
+  constructor(private readonly platform: Platform = 'other') {}
 
   add(entry: ShortcutEntry): () => void {
     this.entries.push(entry)
@@ -94,22 +165,63 @@ export class ShortcutRegistry {
     }
   }
 
-  /** 在指定页面上按下这个快捷键时应当执行的条目 */
+  setKeymap(keymap: Keymap): void {
+    this.keymap = { ...keymap }
+  }
+
+  /** 生效的写法（改键之后）；停用时是空字符串。改键的写法不对时沿用默认的 */
+  private keysOf(entry: ShortcutEntry): string {
+    const override = this.keymap[shortcutId(entry)]
+    if (override === undefined) return entry.defaultKeys
+    if (!override.trim()) return ''
+    try {
+      return normalizeShortcut(override)
+    } catch {
+      return entry.defaultKeys
+    }
+  }
+
+  /** 宿主的在前，其余按注册顺序；带上按平台解析后用来比较的写法 */
+  private active(): { entry: ShortcutEntry; keys: string; match: string }[] {
+    const ordered = [
+      ...this.entries.filter(e => e.pluginId === HOST_OWNER),
+      ...this.entries.filter(e => e.pluginId !== HOST_OWNER),
+    ]
+    return ordered.map(entry => {
+      const keys = this.keysOf(entry)
+      return { entry, keys, match: keys && resolveMod(keys, this.platform) }
+    })
+  }
+
+  /** 在指定页面上按下这个快捷键（可以是按键序列，必须是规范化后的写法）时应当执行的条目 */
   resolve(keys: string, page?: PageType): ShortcutEntry | undefined {
-    return this.entries.find(e => e.keys === keys && applies(e, page))
+    const match = resolveMod(keys, this.platform)
+    return this.active().find(a => a.match && a.match === match && applies(a.entry, page))?.entry
+  }
+
+  /** 有没有以这些按键开头的更长的按键序列 */
+  hasPrefix(keys: string, page?: PageType): boolean {
+    const prefix = `${resolveMod(keys, this.platform)} `
+    return this.active().some(a => a.match.startsWith(prefix) && applies(a.entry, page))
   }
 
   list(): ShortcutInfo[] {
-    return this.entries.map((entry, i) => {
-      const earlier = this.entries
-        .slice(0, i)
-        .find(e => e.keys === entry.keys && e.pluginId !== entry.pluginId && overlaps(e.when, entry.when))
+    const active = this.active()
+    return active.map(({ entry, keys, match }, i) => {
+      const earlier = match
+        ? active
+            .slice(0, i)
+            .find(a => a.match === match && a.entry.pluginId !== entry.pluginId && overlaps(a.entry.when, entry.when))
+        : undefined
       return {
-        keys: entry.keys,
+        id: shortcutId(entry),
+        keys,
+        defaultKeys: entry.defaultKeys,
         pluginId: entry.pluginId,
         description: entry.description,
-        ...(entry.when ? { when: entry.when } : {}),
-        ...(earlier ? { conflictWith: earlier.pluginId } : {}),
+        ...(entry.when ? { when: [...entry.when] } : {}),
+        ...(earlier ? { conflictWith: earlier.entry.pluginId } : {}),
+        ...(keys ? {} : { disabled: true }),
       }
     })
   }

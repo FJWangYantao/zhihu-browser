@@ -10,6 +10,14 @@ export {
   validateMeta,
 } from './meta'
 export { BUDGET_MS } from './monitor'
+export {
+  createDataPack,
+  type DataPack,
+  type ImportChange,
+  type ImportPreview,
+  parseDataPack,
+  previewDataPack,
+} from './packs'
 export { checkFetchUrl, hostMatches, isZhihuHost, validPermission } from './permissions'
-export { normalizeShortcut } from './shortcuts'
+export { formatShortcut, HOST_OWNER, normalizeShortcut, resolveMod } from './shortcuts'
 export type * from './types'

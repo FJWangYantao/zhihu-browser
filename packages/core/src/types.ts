@@ -72,14 +72,27 @@ export interface CommandInfo {
   when?: PageType[]
 }
 
+/** 运行平台：决定快捷键里的 mod 是 ⌘（macOS）还是 Ctrl */
+export type Platform = 'mac' | 'other'
+
+/** 用户改键：快捷键的 id（'插件 id:原来的写法'）→ 新的写法；空字符串表示停用 */
+export type Keymap = Record<string, string>
+
 export interface ShortcutInfo {
-  /** 规范化后的写法，如 'shift+j'、'g g' */
+  /** 改键时用的标识：'插件 id:原来的写法'，如 'reader:r' */
+  id: string
+  /** 生效的写法（规范化后），如 'shift+j'、'g g'；停用时是空字符串 */
   keys: string
+  /** 插件注册时的写法 */
+  defaultKeys: string
+  /** 插件 id；宿主自己的快捷键是 '@host' */
   pluginId: string
   description: string
   when?: PageType[]
-  /** 与之冲突、并且先注册的插件；有值表示这个快捷键不会生效 */
+  /** 与之冲突、并且优先的一方（宿主或先注册的插件）；有值表示这个快捷键不会生效 */
   conflictWith?: string
+  /** 用户停用了这个快捷键 */
+  disabled?: true
 }
 
 /** 适配层为一个内容元素或评论元素提供的东西。 */
@@ -141,6 +154,12 @@ export interface HostOptions {
   errorWindowMs?: number
   /** 熔断：时间窗口内允许的报错次数，超过就停用插件，默认 10 */
   maxErrors?: number
+  /** 运行平台，决定快捷键里的 mod，默认 'other' */
+  platform?: Platform
+  /** 用户改过的快捷键 */
+  keymap?: Keymap
+  /** 按键序列（如 'g g'）两次按键之间最多间隔多久（毫秒），默认 1000 */
+  sequenceTimeoutMs?: number
 }
 
 export interface HostEvents {

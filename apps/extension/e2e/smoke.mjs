@@ -95,6 +95,15 @@ const cardState = (page, key) =>
 // 按时间轮询：后台标签页里 requestAnimationFrame 可能暂停
 const waitFor = (page, fn, arg) => page.waitForFunction(fn, arg, { timeout: 5000, polling: 50 })
 
+/** 等到异步条件成立（例如存储里的值） */
+async function until(fn, timeout = 5000) {
+  const start = Date.now()
+  while (!(await fn())) {
+    if (Date.now() - start > timeout) throw new Error('等待超时')
+    await new Promise(resolve => setTimeout(resolve, 50))
+  }
+}
+
 // ---------- 首页 ----------
 
 const home = await open(HOME)
@@ -209,6 +218,87 @@ await check('停用插件后知乎页面恢复原样', async () => {
   assert.deepEqual((await storage.get('plugins')).plugins, { filter: { enabled: false } })
   await options.getByRole('switch', { name: '启用屏蔽' }).click()
   await waitFor(home, () => document.querySelectorAll('.zb-action').length > 0)
+})
+
+// ---------- 命令面板、快捷键、数据包 ----------
+
+const palette = home.locator('#zb-root .palette')
+async function runCommand(title) {
+  await home.bringToFront()
+  await home.keyboard.press('Control+k')
+  await palette.waitFor({ timeout: 5000 })
+  await home.keyboard.type(title)
+  await home.keyboard.press('Enter')
+}
+
+await check('命令面板：Ctrl+K 打开，列出内置命令；可以查看快捷键', async () => {
+  await home.bringToFront()
+  await home.keyboard.press('Control+k')
+  await palette.waitFor({ timeout: 5000 })
+  const titles = await palette.locator('[role="option"] .title').allTextContents()
+  assert.deepEqual(titles, ['查看快捷键', '插件状态与日志', '打开设置页'])
+  await home.keyboard.press('Escape')
+  await palette.waitFor({ state: 'detached', timeout: 5000 })
+  await runCommand('快捷键')
+  const sheet = home.locator('#zb-root .sheet')
+  await sheet.waitFor({ timeout: 5000 })
+  assert.match(await sheet.textContent(), /打开命令面板/)
+  assert.deepEqual(await sheet.locator('kbd').allTextContents(), ['Ctrl+K'])
+  await home.keyboard.press('Escape')
+})
+
+await check('命令面板：插件状态与日志', async () => {
+  await runCommand('插件状态')
+  const row = home.locator('#zb-root .sheet .row').first()
+  await row.waitFor({ timeout: 5000 })
+  assert.match(await row.textContent(), /屏蔽.*运行中/)
+  await home.keyboard.press('Escape')
+})
+
+await check('在设置页改命令面板的快捷键，知乎页面立即生效', async () => {
+  const registry = (await storage.get('registry')).registry
+  assert.deepEqual(
+    registry.shortcuts.map(s => s.id),
+    ['@host:mod+k'],
+  )
+  assert.match(await options.textContent('body'), /已启用的插件没有注册快捷键/)
+  await options.locator('#palette-keys').fill('alt+p')
+  await options.locator('#palette-keys').blur()
+  await until(async () => (await storage.get('paletteKeys')).paletteKeys === 'alt+p')
+  await home.bringToFront()
+  await home.keyboard.press('Control+k')
+  await home.waitForTimeout(200)
+  assert.equal(await palette.count(), 0)
+  await home.keyboard.press('Alt+p')
+  await palette.waitFor({ timeout: 5000 })
+  await home.keyboard.press('Escape')
+  await options.getByRole('button', { name: '恢复默认', exact: true }).click()
+  await until(async () => (await storage.get('paletteKeys')).paletteKeys === 'mod+k')
+})
+
+await check('数据包：导出当前设置；导入前先预览，导入后知乎页面立即应用', async () => {
+  const [download] = await Promise.all([
+    options.waitForEvent('download'),
+    options.getByRole('button', { name: '导出为数据包' }).click(),
+  ])
+  assert.equal(download.suggestedFilename(), 'zhihu-browser-filter.json')
+  const exported = JSON.parse(fs.readFileSync(await download.path(), 'utf8'))
+  assert.deepEqual(exported.settings, { mode: 'remove', keywords: ['营销'] })
+
+  const pack = { zbPack: 1, plugin: 'filter', name: '示例屏蔽列表', settings: { authors: ['用户3 @user-3'] } }
+  await options.locator('input[type="file"]').setInputFiles({
+    name: 'pack.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(pack)),
+  })
+  const preview = options.locator('section.pack-preview')
+  await preview.waitFor({ timeout: 5000 })
+  assert.match(await preview.textContent(), /屏蔽作者：新增 1 项：用户3 @user-3/)
+  assert.equal(await cardState(home, 'answer:14'), 'shown')
+  await preview.getByRole('button', { name: '导入' }).click()
+  // 14 号的作者是用户3
+  await waitFor(home, () => !!document.querySelector('[data-zb-id="answer:14"]')?.closest('[data-zb-hidden]'))
+  assert.deepEqual((await settings()).authors, ['用户3 @user-3'])
 })
 
 await check('安全模式：刷新后不运行任何插件', async () => {

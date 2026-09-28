@@ -7,6 +7,7 @@
   --border: #e5e5e5;
   --accent: #056de8;
   --banner: #fff4e0;
+  --danger: #d03a3a;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -18,6 +19,7 @@
     --border: #333;
     --accent: #3a8ee6;
     --banner: #3a2c10;
+    --danger: #ef6b6b;
   }
 }
 
@@ -258,4 +260,115 @@ button.link {
 .notice.show {
   opacity: 1;
   transform: translate(-50%, 0);
+}
+
+h3 {
+  margin: 16px 0 4px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.actions {
+  display: flex;
+  gap: 16px;
+}
+
+.description.error,
+.pack-preview.error {
+  color: var(--danger);
+}
+
+/* 快捷键 */
+.shortcut-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.shortcut-input input {
+  flex: 1;
+  min-width: 0;
+}
+
+kbd {
+  flex: none;
+  min-width: 2em;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+/* 数据包 */
+.file-button {
+  position: relative;
+  align-self: flex-start;
+  display: inline-block;
+  padding: 6px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.file-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.file-button input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.pack-preview {
+  margin-top: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.pack-preview h3 {
+  margin-top: 0;
+  color: var(--text);
+}
+
+.pack-preview ul {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.pack-preview .actions {
+  margin-top: 12px;
+}
+
+button.primary,
+.pack-preview button {
+  padding: 6px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 14px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+button.primary {
+  border-color: var(--accent);
+  color: #fff;
+  background: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }

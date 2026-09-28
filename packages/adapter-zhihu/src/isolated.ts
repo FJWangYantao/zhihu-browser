@@ -14,7 +14,6 @@ import {
   identify,
   isContentElement,
 } from './dom/anchors'
-import { createPageUI, type PageUI } from './dom/global-ui'
 import { createHandle, HEADER_OFFSET } from './dom/handle'
 import { addFold, createItemUI, type DecorEnv, type DomItemUI } from './dom/item-ui'
 import { classify, type Filters, processResponse } from './endpoints'
@@ -34,8 +33,6 @@ export interface AdapterOptions {
 }
 
 export interface Adapter {
-  /** 全局界面和全局样式，交给宿主 */
-  readonly ui: PageUI
   /** 当前页面上已识别的内容，交给宿主 */
   readonly contents: HostServices['contents']
   readonly store: ContentStore
@@ -70,7 +67,6 @@ export function createAdapter(options: AdapterOptions = {}): Adapter {
   const doc = options.document ?? document
   const win = doc.defaultView ?? window
   const store = new ContentStore()
-  const ui = createPageUI(doc)
   const tracked = new Map<Element, Tracked>()
   const pending = new Set<Element>()
   const cleanups: (() => void)[] = []
@@ -418,7 +414,6 @@ export function createAdapter(options: AdapterOptions = {}): Adapter {
   }
 
   return {
-    ui,
     contents,
     store,
 
@@ -447,7 +442,6 @@ export function createAdapter(options: AdapterOptions = {}): Adapter {
       pending.clear()
       hydrationQueue.clear()
       doc.documentElement?.removeAttribute('data-zb-prehide')
-      ui.dispose()
     },
   }
 }

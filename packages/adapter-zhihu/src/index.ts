@@ -3,6 +3,7 @@
 
 export { DATA_API } from './api-urls'
 export type { ToIsolated, ToMain } from './bridge'
+export { findSidebar } from './dom/anchors'
 export { classify, type Endpoint, type Filters, type ProcessResult, processResponse } from './endpoints'
 export { type Adapter, type AdapterOptions, createAdapter } from './isolated'
 export { toAuthor, toComment, toContent, toFeedItem, toSearchResult } from './normalize'
