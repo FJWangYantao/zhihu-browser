@@ -49,6 +49,15 @@ function loadAnswersByXhr() {
 
 loadMore()
 loadAnswersByXhr()
+
+// 用户主页：接口地址里带着用户标识（检验探针会把它们抹掉）
+const person = /^\/people\/([^/]+)/.exec(location.pathname)
+if (person) {
+  fetch(`/api/v3/moments/${person[1]}/activities?limit=5`)
+  fetch(`/api/v4/profile/${person[1]}/infinity`)
+  fetch('/api/v3/moments/extra')
+  fetch('/api/v4/somewhere/purelettertoken')
+}
 setTimeout(() => history.pushState({}, '', '/question/1'), 1500)
 setTimeout(() => history.pushState({}, '', '/search?q=test'), 2500)
 setTimeout(() => history.back(), 3500)

@@ -28,6 +28,7 @@ const server = http.createServer((req, res) => {
     return json(list([p * 100 + 1, p * 100 + 2, p * 100 + 3, p * 100 + 4], p >= 5))
   }
   if (u.pathname === '/api/v4/questions/1/feeds') return json(list([901, 902, 903, 904, 905]))
+  if (u.pathname.startsWith('/api/')) return json({ data: [], paging: { is_end: true } })
   if (u.pathname === '/static/app.js') {
     res.writeHead(200, { 'content-type': 'text/javascript' })
     return res.end(fs.readFileSync(path.join(site, 'app.js')))
@@ -88,6 +89,9 @@ await sleep(6000)
 await page.evaluate(() => window.scrollBy(0, 200))
 await sleep(3000)
 const app1 = await page.evaluate(() => window.__app)
+// 用户主页：检验用户标识不会进入报告
+await page.goto('http://www.zhihu.com/people/ab-cd-12')
+await sleep(9500)
 await page.close()
 
 // ---------- 第二轮：打开全部实验 ----------
@@ -131,7 +135,9 @@ const check = (name, ok, detail = '') => checks.push({ name, ok: !!ok, detail })
 check('页面主环境脚本运行', r.env.MAIN)
 check('扩展隔离环境脚本运行', r.env.ISOLATED)
 check('读到首屏数据', r.initialData.home?.found, JSON.stringify(r.initialData.home?.entityCounts))
-check('首屏数据里的用户标识没有写进报告', !JSON.stringify(r).includes('zhang-san'))
+check('报告里没有任何用户标识', ['zhang-san', 'li-si', 'ab-cd-12', 'purelettertoken'].every(t => !JSON.stringify(r).includes(t)),
+  ['zhang-san', 'li-si', 'ab-cd-12', 'purelettertoken'].filter(t => JSON.stringify(r).includes(t)).join(', '))
+check('接口地址里的用户标识被替换、固定词保留', ['moments/:token/activities', 'profile/:token/infinity', 'moments/extra', 'somewhere/:token'].every(k => Object.keys(r.api).some(a => a.includes(k))), Object.keys(r.api).join(' | '))
 check('读到首屏数据时前端未启动', r.initialDataTiming.some(t => t.appBootedBeforeSeen === false))
 check('拦截到 fetch 接口', Object.keys(r.api).some(k => k.includes('recommend')), Object.keys(r.api).join(' | '))
 check('拦截到 XHR 接口', Object.values(r.api).some(a => a.via.includes('xhr')))

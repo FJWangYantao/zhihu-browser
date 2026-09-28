@@ -97,9 +97,10 @@ function secAnchors(r) {
   const pct = (n, d) => (d ? `${n}/${d}（${Math.round((n / d) * 100)}%）` : '—')
   return section('4. 从内容元素找到数据', status(pages.some(([, a]) => a.items > 0 && a.anyId === a.items), pages.length > 0),
     h('p', { class: 'muted' }, '对每个 .ContentItem，分别用 data-zop、microdata、链接、React 属性找 id；"在数据中"表示该 id 出现在首屏数据或接口响应里。'),
-    table(['页面', '内容元素', 'data-zop', 'microdata', '链接', 'React', '任一方式', '各方式一致', '在数据中', '哈希类名占比'], pages.map(([pt, a]) => [
+    table(['页面', '内容元素', 'data-zop', 'microdata', '链接', 'React', '只有 React 有 id', '任一方式', '各方式一致', '不一致的组合', '在数据中', '哈希类名占比'], pages.map(([pt, a]) => [
       pageName(pt), a.items, pct(a.idBy.zop, a.items), pct(a.idBy.microdata, a.items), pct(a.idBy.link, a.items),
-      pct(a.idBy.react, a.items), pct(a.anyId, a.items), pct(a.agree, a.anyId), pct(a.inStore, a.anyId), a.hashedClassRatio,
+      pct(a.idBy.react, a.items), a.reactOnly ?? '—', pct(a.anyId, a.items), pct(a.agree, a.anyId),
+      Object.entries(a.mismatch || {}).map(([k, n]) => `${k}×${n}`).join('，') || '—', pct(a.inStore, a.anyId), a.hashedClassRatio,
     ])),
     h('h3', {}, '选择器匹配数量'),
     table(['选择器', ...pages.map(([pt]) => pageName(pt))], Object.keys(pages[0]?.[1].counts || {}).map(sel => [code(sel), ...pages.map(([, a]) => a.counts[sel])])),

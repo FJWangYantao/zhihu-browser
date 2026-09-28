@@ -15,6 +15,24 @@
     Object.assign(config, JSON.parse(localStorage.getItem('zbp-config') || '{}'))
   } catch {}
 
+  // ---------- 用户标识：只保存在内存里，用来把它们从所有记录中抹掉 ----------
+  const tokenStore = new Set()
+  function rememberPageToken(href) {
+    const m = /^\/(?:people|org)\/([^/?#]+)/.exec(new URL(href, location.href).pathname)
+    if (!m) return
+    try {
+      tokenStore.add(decodeURIComponent(m[1]))
+    } catch {
+      tokenStore.add(m[1])
+    }
+  }
+  rememberPageToken(location.href)
+  function scrub(text) {
+    let out = String(text)
+    for (const t of tokenStore) if (t.length >= 3 && out.includes(t)) out = out.split(t).join(':token')
+    return out.replace(/\d{6,}/g, ':id')
+  }
+
   // ---------- 页面类型与地址规范化 ----------
   function pageType(href) {
     const u = new URL(href, location.href)
@@ -36,11 +54,22 @@
 
   // 把地址里的 id、用户标识替换掉，只保留查询参数名
   function normalizePath(u) {
-    const segs = u.pathname.split('/').map((s, i, arr) => {
+    const parts = u.pathname.split('/')
+    const segs = parts.map((s, i) => {
       if (!s) return s
-      if (/^\d+$/.test(s) || /^[0-9a-f]{16,}$/i.test(s)) return ':id'
-      if (i > 0 && /^(people|org|members)$/.test(arr[i - 1])) return ':token'
-      if (s.length > 40) return ':long'
+      let d = s
+      try {
+        d = decodeURIComponent(s)
+      } catch {}
+      const prev = parts[i - 1] || ''
+      const isLast = parts.slice(i + 1).every(x => !x)
+      if (/^\d+$/.test(d) || /^[0-9a-f]{16,}$/i.test(d)) return ':id'
+      if (tokenStore.has(d)) return ':token'
+      if (/^(people|org|members)$/.test(prev)) return ':token'
+      // 如 /moments/<用户>/activities、/profile/<用户>/infinity；/moments/extra 这类末尾的固定词保留
+      if (/^(moments|profile|users|u)$/.test(prev) && !isLast) return ':token'
+      if (/\d/.test(d) && d.includes('-')) return ':token'
+      if (d.length > 40) return ':long'
       return s
     })
     return u.host + segs.join('/')
@@ -85,7 +114,8 @@
   }
 
   // ---------- 结构摘要：只保留字段名和类型 ----------
-  const idLike = k => /^\d+$/.test(k) || /^[0-9a-f]{16,}$/i.test(k) || k.includes('-') || /^[A-Za-z0-9_]{24,}$/.test(k)
+  const idLike = k =>
+    /^\d+$/.test(k) || /^[0-9a-f]{16,}$/i.test(k) || k.includes('-') || /^[A-Za-z0-9_]{24,}$/.test(k) || tokenStore.has(k)
 
   function merge(a, b) {
     if (a === undefined) return b
@@ -117,7 +147,7 @@
     const isIdMap =
       keys.length > 0 &&
       (parentKey === 'entities' ||
-        (keys.length >= 2 && keys.filter(idLike).length / keys.length >= 0.5))
+        keys.filter(idLike).length / keys.length >= 0.5)
     if (isIdMap) {
       const el = keys.slice(0, 3).map(k => shape(v[k], '#id', key, depth + 1, maxDepth)).reduce(merge, undefined)
       return { '#idMap': el, '#count': keys.length }
@@ -155,7 +185,9 @@
       return
     }
     if (parentKey === 'entities') Object.keys(v).forEach(k => idStore.add(k))
+    if (parentKey === 'entities' && key === 'users') Object.keys(v).forEach(k => tokenStore.add(k))
     for (const [k, x] of Object.entries(v)) {
+      if ((k === 'url_token' || k === 'urlToken') && typeof x === 'string' && x && tokenStore.size < 20000) tokenStore.add(x)
       if ((k === 'id' || k === 'itemId') && (typeof x === 'number' || (typeof x === 'string' && /^\d+$/.test(x)))) {
         idStore.add(String(x))
       } else if (x && typeof x === 'object') collectIds(x, k, key, depth + 1)
@@ -169,7 +201,7 @@
   window.addEventListener('error', e => {
     if (!(e instanceof ErrorEvent)) return
     errors++
-    if (errorSamples.length < 5) errorSamples.push(String(e.message).slice(0, 120))
+    if (errorSamples.length < 5) errorSamples.push(scrub(e.message).slice(0, 120))
   }, true)
   window.addEventListener('unhandledrejection', () => rejections++)
 
@@ -190,6 +222,7 @@
     const scriptsBefore = [...document.querySelectorAll('script[src]')].filter(
       s => s.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).length
+    collectIds(json)
     const entities = json?.initialState?.entities
     const info = {
       found: true,
@@ -205,7 +238,6 @@
         : null,
       shape: shape(json, '', '', 0, 5),
     }
-    collectIds(json)
 
     if (config.initialDataMode === 'roundtrip') {
       el.textContent = JSON.stringify(json)
@@ -369,7 +401,7 @@
         return out
       }
     } catch (e) {
-      send('hookError', { via: 'fetch', message: String(e?.message || e).slice(0, 120) })
+      send('hookError', { via: 'fetch', message: scrub(e?.message || e).slice(0, 120) })
     }
     return res
   }
@@ -411,7 +443,7 @@
         Object.defineProperty(this, 'response', { configurable: true, get: () => (type === 'json' ? modified : text) })
       }
     } catch (e) {
-      send('hookError', { via: 'xhr', message: String(e?.message || e).slice(0, 120) })
+      send('hookError', { via: 'xhr', message: scrub(e?.message || e).slice(0, 120) })
     }
   }
 
@@ -458,6 +490,7 @@
   function signal(mech) {
     const url = location.href
     if (url !== lastUrl) {
+      rememberPageToken(url)
       if (change) flushChange(change)
       const c = { from: pageType(lastUrl), to: pageType(url), first: mech, by: { [mech]: 0 }, t: performance.now() }
       change = c
@@ -486,6 +519,7 @@
     AnswerItem: '.AnswerItem',
     ArticleItem: '.ArticleItem',
     TopstoryItem: '.TopstoryItem',
+    HotItem: '.HotItem',
     'List-item': '.List-item',
     Card: '.Card',
     QuestionHeader: '.QuestionHeader',
@@ -550,6 +584,8 @@
     let agree = 0
     let inStore = 0
     let hasFiber = 0
+    let reactOnly = 0
+    const mismatch = {}
     const reactPropKeys = new Set()
     const zopTypes = {}
     for (const el of items) {
@@ -562,7 +598,7 @@
           if (j.type) zopTypes[j.type] = (zopTypes[j.type] || 0) + 1
         } catch {}
       }
-      const m1 = ID_RE.exec(el.querySelector('meta[itemprop="url"]')?.getAttribute('content') || '')
+      const m1 = [...el.querySelectorAll('meta[itemprop="url"]')].map(m => ID_RE.exec(m.getAttribute('content') || '')).find(Boolean)
       if (m1) ids.microdata = m1[1]
       const a = el.querySelector('a[href*="/answer/"], a[href*="/p/"], a[href*="/pin/"], a[href*="/zvideo/"]')
       const m2 = ID_RE.exec(a?.getAttribute('href') || '')
@@ -573,12 +609,19 @@
         r.propKeys.forEach(k => reactPropKeys.add(k))
         const known = ids.zop || ids.microdata || ids.link
         if (known && r.ids.has(known)) ids.react = known
+        if (!known && r.ids.size) reactOnly++
       }
       for (const k of Object.keys(idBy)) if (ids[k]) idBy[k]++
       const vals = [ids.zop, ids.microdata, ids.link].filter(Boolean)
       if (vals.length) {
         anyId++
         if (new Set(vals).size === 1) agree++
+        else {
+          const names = ['zop', 'microdata', 'link'].filter(k => ids[k])
+          for (let i = 0; i < names.length; i++)
+            for (let j = i + 1; j < names.length; j++)
+              if (ids[names[i]] !== ids[names[j]]) mismatch[`${names[i]}≠${names[j]}`] = (mismatch[`${names[i]}≠${names[j]}`] || 0) + 1
+        }
         if (idStore.has(vals[0])) inStore++
       }
     }
@@ -599,6 +642,8 @@
       agree,
       inStore,
       hasFiber,
+      reactOnly,
+      mismatch,
       reactPropKeys: [...reactPropKeys].slice(0, 20),
       hashedClassRatio: all.length ? Math.round((hashed / all.length) * 100) / 100 : null,
       htmlAttrs: document.documentElement

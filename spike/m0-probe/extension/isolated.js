@@ -93,6 +93,19 @@
     } catch {}
   }, 2500)
 
+  // 地址里的数字 id 和用户标识替换掉
+  function safePath(path) {
+    return path
+      .split('/')
+      .map((seg, i, arr) => {
+        if (!seg) return seg
+        if (/^\d+$/.test(seg)) return ':id'
+        if (/^(people|org)$/.test(arr[i - 1] || '') || (/\d/.test(seg) && seg.includes('-'))) return ':token'
+        return seg
+      })
+      .join('/')
+  }
+
   // ---------- 7. 暗色测试：切换 <html data-theme>，看页面颜色是否变化，3 秒后恢复 ----------
   async function runDarkTest() {
     const html = document.documentElement
@@ -111,7 +124,7 @@
       else html.setAttribute('data-theme', before.theme)
     }, 3000)
     const result = {
-      url: location.hostname + location.pathname.replace(/\d+/g, ':id'),
+      url: location.hostname + safePath(location.pathname),
       before,
       after,
       changed: before.bg !== after.bg || before.text !== after.text,
