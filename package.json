@@ -12,7 +12,8 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "typecheck": "pnpm -r typecheck && node scripts/check-doc-examples.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "e2e": "pnpm --filter @zhihu-browser/extension e2e"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

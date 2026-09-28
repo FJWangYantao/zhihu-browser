@@ -36,9 +36,9 @@ import type {
 
 export interface Host {
   /** 加载插件；enabled 为 false 或处于安全模式时只登记、不运行。meta 不合法时抛出 PluginLoadError。 */
-  load(module: PluginModule, options?: { enabled?: boolean }): Promise<PluginInfo>
+  load<M extends PluginMeta>(module: PluginModule<M>, options?: { enabled?: boolean }): Promise<PluginInfo>
   /** 替换同一 id 的插件（热重载），保持原来的启用状态 */
-  reload(module: PluginModule): Promise<PluginInfo>
+  reload<M extends PluginMeta>(module: PluginModule<M>): Promise<PluginInfo>
   unload(id: string): void
   enable(id: string): Promise<PluginInfo>
   disable(id: string, reason?: string): PluginInfo
@@ -668,7 +668,8 @@ export function createHost(options: HostOptions): Host {
       if (instances.has(id)) throw new PluginLoadError(id, ['已经加载了同一个 id 的插件'])
       const inst: Instance = {
         id,
-        module,
+        // 插件入口按自己的 meta 推导设置项类型；宿主内部统一当作 PluginModule 处理
+        module: module as unknown as PluginModule,
         meta: deepFreeze(structuredClone(meta as PluginMeta)),
         enabled,
         state: 'inactive',

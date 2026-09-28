@@ -114,8 +114,14 @@
   }
 
   // ---------- 结构摘要：只保留字段名和类型 ----------
+  // 含 / 或 : 的键是网址之类（例如 link_card_info 以内容网址为键），也按 id 处理，免得把内容 id 带进报告
   const idLike = k =>
-    /^\d+$/.test(k) || /^[0-9a-f]{16,}$/i.test(k) || k.includes('-') || /^[A-Za-z0-9_]{24,}$/.test(k) || tokenStore.has(k)
+    /^\d+$/.test(k) ||
+    /^[0-9a-f]{16,}$/i.test(k) ||
+    k.includes('-') ||
+    /[/:]/.test(k) ||
+    /^[A-Za-z0-9_]{24,}$/.test(k) ||
+    tokenStore.has(k)
 
   function merge(a, b) {
     if (a === undefined) return b

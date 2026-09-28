@@ -4,6 +4,8 @@
     "strict": true,
     "noEmit": true,
     "verbatimModuleSyntax": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact"
   }
 }

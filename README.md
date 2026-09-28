@@ -9,7 +9,24 @@
 
 设计理念参考了 [pi](https://github.com/badlogic/pi-mono) 的"小核心 + 可扩展"。
 
-> 当前进度：M0 技术验证已完成，M1 开发中。扩展现在还没有任何功能。
+> 当前进度：M1 开发中。第一个官方插件"屏蔽"已经可以在真实知乎上试用，见下面的"试用"。
+
+## 试用
+
+1. 按下面"开发"一节构建扩展，或者在 GitHub Actions 的运行记录里下载 CI 构建好的扩展（`zhihu-browser-chrome-mv3`）并解压。
+2. 在 Chrome 或 Edge 里打开 `chrome://extensions`，打开右上角的"开发者模式"，点"加载已解压的扩展程序"，选择 `apps/extension/.output/chrome-mv3` 目录（或解压出来的目录）。
+3. 打开知乎。点浏览器工具栏里的扩展图标，进入设置页。
+
+"屏蔽"插件可以：
+
+- 按关键词（支持 `/正则/`）、作者、内容类型（视频、想法、付费内容）屏蔽，默认去掉广告和推广；
+- 选择"折叠并显示原因"或"直接去掉"；
+- 在内容下方点"屏蔽作者"一键加入屏蔽列表；
+- 评论也按关键词和作者屏蔽。
+
+修改设置后，已经打开的知乎页面立即生效，不用刷新。在设置页关掉插件，或者打开安全模式，页面就和没装扩展时一样。
+
+扩展不收集任何数据，设置只保存在本机浏览器里；不主动请求知乎的接口，也不会替你在知乎上做任何操作。
 
 ## 文档
 
@@ -26,7 +43,8 @@ pnpm install
 pnpm build       # 构建扩展，输出在 apps/extension/.output/chrome-mv3
 pnpm lint        # 代码规范（Biome）
 pnpm typecheck   # 类型检查，包括 docs/plugin-api.md 里的示例
-pnpm test        # 测试（Vitest）
+pnpm test        # 单元测试（Vitest）
+pnpm e2e         # 端到端测试：在本地模拟的知乎上用 Chromium 加载构建好的扩展（先执行 pnpm build）
 ```
 
 构建好的扩展可以在 `chrome://extensions` 里用"加载已解压的扩展程序"加载。CI 每次构建后也会上传扩展，可以在 GitHub Actions 的运行记录里下载。
@@ -36,6 +54,8 @@ pnpm test        # 测试（Vitest）
 | `apps/extension` | 浏览器扩展（WXT） |
 | `packages/sdk` | 插件 API 的类型定义 |
 | `packages/core` | 插件宿主：生命周期、钩子调度、隔离与熔断、设置、存储、权限 |
+| `packages/adapter-zhihu` | 知乎适配层：接口拦截、数据整理、页面元素识别、界面工具。知乎改版只修这里 |
+| `plugins/filter` | 官方插件"屏蔽" |
 | `spike/m0-probe` | M0 技术验证用的探针扩展 |
 
 ## 许可证与声明

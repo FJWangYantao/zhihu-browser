@@ -1,0 +1,118 @@
+/*
+ * zhihu-browser 适配层样式。由扩展随内容脚本注入（写在 manifest 里），不受知乎页面 CSP 的限制。
+ * 选择器里的知乎类名和 src/dom/anchors.ts 保持一致。
+ */
+
+/* 预隐藏：适配层处理完之前先隐藏内容卡片，避免服务端渲染的内容"先显示再隐藏"。处理完会打上 data-zb-done。 */
+html[data-zb-prehide] :is(.ContentItem, .HotItem):not([data-zb-done]) {
+  visibility: hidden !important;
+}
+
+/* 被过滤的内容 */
+[data-zb-hidden] {
+  display: none !important;
+}
+
+/* 折叠：原因写在 data-zb-fold 里，隐藏子元素，用伪元素显示成一行 */
+[data-zb-fold]:not([data-zb-fold-open]) > * {
+  display: none !important;
+}
+
+[data-zb-fold]::before {
+  content: "已折叠：" attr(data-zb-fold) " · 点击展开";
+  display: block;
+  padding: 10px 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: #8590a6;
+  cursor: pointer;
+  user-select: none;
+}
+
+[data-zb-fold]:not([data-zb-fold-open]):hover::before {
+  color: #056de8;
+}
+
+[data-zb-fold][data-zb-fold-open]::before {
+  content: "已展开：" attr(data-zb-fold) " · 点击折叠";
+  padding: 4px 0 8px;
+  font-size: 12px;
+}
+
+/* 标签 */
+.zb-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 6px;
+  vertical-align: middle;
+  font-weight: normal;
+}
+
+.zb-badge {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 20px;
+  white-space: nowrap;
+  color: #056de8;
+  background: rgba(5, 109, 232, 0.08);
+}
+
+.zb-badge[data-tone="warn"] {
+  color: #b86200;
+  background: rgba(240, 140, 0, 0.12);
+}
+
+.zb-badge[data-tone="muted"] {
+  color: #8590a6;
+  background: rgba(133, 144, 166, 0.14);
+}
+
+/* 操作按钮：放在知乎的操作栏里时借用知乎按钮的样式，这里只处理我们自己的一行 */
+.zb-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 8px 0;
+}
+
+span.zb-actions {
+  display: inline-flex;
+  margin: 0 8px;
+}
+
+.zb-actions > .zb-action {
+  padding: 0;
+  font: inherit;
+  font-size: 14px;
+  color: #8590a6;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.zb-actions > .zb-action:hover {
+  color: #056de8;
+}
+
+.zb-mount {
+  display: block;
+}
+
+/* 知乎自带的暗色 */
+html[data-theme="dark"] [data-zb-fold]::before,
+html[data-theme="dark"] .zb-actions > .zb-action {
+  color: #8590a6;
+}
+
+html[data-theme="dark"] [data-zb-fold]:not([data-zb-fold-open]):hover::before,
+html[data-theme="dark"] .zb-actions > .zb-action:hover {
+  color: #3a76d0;
+}
+
+html[data-theme="dark"] .zb-badge {
+  color: #6fa1e6;
+  background: rgba(58, 118, 208, 0.2);
+}

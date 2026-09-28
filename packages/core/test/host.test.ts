@@ -1,4 +1,4 @@
-import type { ContentContext, ItemContext, PageContext, PageInfo } from '@zhihu-browser/sdk'
+import type { ContentContext, ItemContext, PageContext, PageInfo, PluginAPI, PluginMeta } from '@zhihu-browser/sdk'
 import { describe, expect, test, vi } from 'vitest'
 import { PluginLoadError } from '../src/index'
 import { answer, comment, feedItem, flush, page, plugin, setup, target } from './helpers'
@@ -19,6 +19,26 @@ describe('加载与生命周期', () => {
     expect(entry).toHaveBeenCalledTimes(1)
     expect(entry.mock.calls[0]?.[0].meta.id).toBe('a')
     expect(result.state).toBe('active')
+  })
+
+  test('插件文件按自己的 meta 推导设置项类型，照样可以加载', async () => {
+    const { host } = setup()
+    const meta = {
+      id: 'typed',
+      name: 'typed',
+      version: '1.0.0',
+      api: 1,
+      settings: { n: { type: 'number', label: '数', default: 3 } },
+    } satisfies PluginMeta
+    let value: number | undefined
+    const module = {
+      meta,
+      default: (z: PluginAPI<typeof meta>) => {
+        value = z.settings.get('n')
+      },
+    }
+    expect((await host.load(module)).state).toBe('active')
+    expect(value).toBe(3)
   })
 
   test('同一个 id 不能加载两次', async () => {

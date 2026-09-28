@@ -1,6 +1,6 @@
 {
   "name": "@zhihu-browser/extension",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "zhihu-browser 浏览器扩展",
   "license": "MIT",
@@ -10,13 +10,21 @@
     "build": "wxt build",
     "zip": "wxt zip",
     "typecheck": "tsc -p tsconfig.json",
-    "postinstall": "wxt prepare"
+    "postinstall": "wxt prepare",
+    "test": "vitest run",
+    "e2e": "node e2e/smoke.mjs"
   },
   "dependencies": {
-    "@zhihu-browser/sdk": "workspace:*"
+    "@zhihu-browser/adapter-zhihu": "workspace:*",
+    "@zhihu-browser/core": "workspace:*",
+    "@zhihu-browser/plugin-filter": "workspace:*",
+    "@zhihu-browser/sdk": "workspace:*",
+    "preact": "^10.29.8"
   },
   "devDependencies": {
+    "playwright": "1.56.1",
     "typescript": "^7.0.2",
+    "vitest": "^5.0.2",
     "wxt": "^0.21.4"
   }
 }

@@ -41,3 +41,9 @@ jobs:
         with:
           name: zhihu-browser-chrome-mv3
           path: apps/extension/.output/chrome-mv3
+
+      - name: 安装端到端测试用的 Chromium
+        run: pnpm --filter @zhihu-browser/extension exec playwright install --with-deps chromium
+
+      - name: 端到端测试（本地模拟的知乎）
+        run: pnpm e2e

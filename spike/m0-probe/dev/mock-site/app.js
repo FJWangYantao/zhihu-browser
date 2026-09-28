@@ -58,6 +58,8 @@ if (person) {
   fetch('/api/v3/moments/extra')
   fetch('/api/v4/somewhere/purelettertoken')
 }
+// 以内容网址为键的映射（真实知乎的 link_card_info）：检验网址里的内容 id 不会进入报告
+fetch('/api/v4/editor/link_card_infos?scene=answer&urls=x')
 setTimeout(() => history.pushState({}, '', '/question/1'), 1500)
 setTimeout(() => history.pushState({}, '', '/search?q=test'), 2500)
 setTimeout(() => history.back(), 3500)

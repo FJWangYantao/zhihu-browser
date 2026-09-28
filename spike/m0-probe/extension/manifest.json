@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "zhihu-browser M0 探针",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "zhihu-browser M0 技术验证：只读取页面结构并在本地记录，不上传任何数据。",
   "minimum_chrome_version": "120",
   "permissions": [

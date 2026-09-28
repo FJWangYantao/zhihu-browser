@@ -7,5 +7,10 @@ export default defineConfig({
     minimum_chrome_version: '138',
     permissions: ['storage'],
     host_permissions: ['*://*.zhihu.com/*'],
+    action: { default_title: 'zhihu-browser 设置' },
   },
+  vite: () => ({
+    // 设置页用 Preact 的 JSX
+    oxc: { jsx: { runtime: 'automatic', importSource: 'preact' } },
+  }),
 })

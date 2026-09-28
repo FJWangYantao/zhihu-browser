@@ -1,0 +1,33 @@
+{
+  "name": "@zhihu-browser/adapter-zhihu",
+  "version": "0.0.0",
+  "private": true,
+  "description": "zhihu-browser 知乎适配层：路由、数据转换、接口拦截、内容元素识别与界面工具",
+  "license": "MIT",
+  "type": "module",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./main-world": {
+      "types": "./src/main-world.ts",
+      "default": "./src/main-world.ts"
+    },
+    "./styles.css": "./src/styles.css"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@zhihu-browser/core": "workspace:*",
+    "@zhihu-browser/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "happy-dom": "^20.14.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}

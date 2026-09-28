@@ -28,6 +28,9 @@ const server = http.createServer((req, res) => {
     return json(list([p * 100 + 1, p * 100 + 2, p * 100 + 3, p * 100 + 4], p >= 5))
   }
   if (u.pathname === '/api/v4/questions/1/feeds') return json(list([901, 902, 903, 904, 905]))
+  if (u.pathname === '/api/v4/editor/link_card_infos') {
+    return json({ link_card_info: { 'https://www.zhihu.com/answer/776655': { title: 't' }, 'https://zhuanlan.zhihu.com/p/887766': { title: 't' } } })
+  }
   if (u.pathname.startsWith('/api/')) return json({ data: [], paging: { is_end: true } })
   if (u.pathname === '/static/app.js') {
     res.writeHead(200, { 'content-type': 'text/javascript' })
@@ -137,6 +140,7 @@ check('扩展隔离环境脚本运行', r.env.ISOLATED)
 check('读到首屏数据', r.initialData.home?.found, JSON.stringify(r.initialData.home?.entityCounts))
 check('报告里没有任何用户标识', ['zhang-san', 'li-si', 'ab-cd-12', 'purelettertoken'].every(t => !JSON.stringify(r).includes(t)),
   ['zhang-san', 'li-si', 'ab-cd-12', 'purelettertoken'].filter(t => JSON.stringify(r).includes(t)).join(', '))
+check('以网址为键的映射被折叠，内容 id 不进报告', !JSON.stringify(r).includes('776655') && !JSON.stringify(r).includes('887766'))
 check('接口地址里的用户标识被替换、固定词保留', ['moments/:token/activities', 'profile/:token/infinity', 'moments/extra', 'somewhere/:token'].every(k => Object.keys(r.api).some(a => a.includes(k))), Object.keys(r.api).join(' | '))
 check('读到首屏数据时前端未启动', r.initialDataTiming.some(t => t.appBootedBeforeSeen === false))
 check('拦截到 fetch 接口', Object.keys(r.api).some(k => k.includes('recommend')), Object.keys(r.api).join(' | '))
