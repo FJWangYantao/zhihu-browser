@@ -1,0 +1,4 @@
+/* 首屏预隐藏实验：由扩展注入，不受页面 CSP 限制。只有 <html data-zbp-prehide> 时生效。 */
+html[data-zbp-prehide] :is(.ContentItem, .TopstoryItem, .List-item):not([data-zbp-ok]) {
+  visibility: hidden !important;
+}

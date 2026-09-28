@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>M0 探针</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { width: 320px; padding: 12px 14px; }
+    section { border-top: 1px solid var(--border); padding-top: 8px; margin-top: 8px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <h1>M0 探针</h1>
+  <p class="muted">只在本机记录页面结构，不上传任何数据。</p>
+
+  <section>
+    <p>当前标签页：<span id="tab">检测中…</span></p>
+    <p>用户脚本（userScripts）：<span id="us">检测中…</span></p>
+    <div class="row">
+      <button id="recheck">重新检测用户脚本</button>
+      <button id="grant" hidden>授予用户脚本权限</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>实验开关</h2>
+    <p class="muted">修改后刷新知乎页面才生效。做完实验请改回"关闭"。</p>
+    <label>接口数据过滤
+      <select id="filterMode">
+        <option value="off">关闭</option>
+        <option value="drop-half">去掉一半条目</option>
+        <option value="drop-all">去掉全部条目</option>
+      </select>
+    </label>
+    <label>首屏数据改写
+      <select id="initialDataMode">
+        <option value="off">关闭</option>
+        <option value="roundtrip">原样写回</option>
+        <option value="drop-answer">删掉一个回答的数据</option>
+      </select>
+    </label>
+    <label>首屏预隐藏 <input type="checkbox" id="prehide"></label>
+  </section>
+
+  <section>
+    <div class="row">
+      <button id="dark">测试知乎自带暗色</button>
+      <button id="report" class="primary">打开报告</button>
+    </div>
+    <p id="darkResult" class="muted"></p>
+  </section>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="zh">
+<head><meta charset="utf-8"><title>mock zhihu</title></head>
+<body>
+  <div id="list">
+    <div class="TopstoryItem"><div class="ContentItem AnswerItem" data-zop='{"authorName":"a","itemId":111,"title":"t1","type":"answer"}'>
+      <meta itemprop="url" content="https://www.zhihu.com/question/1/answer/111"><a href="/question/1/answer/111">回答 111</a>
+      <div class="RichContent">正文</div><div class="ContentItem-actions"></div></div></div>
+    <div class="TopstoryItem"><div class="ContentItem AnswerItem" data-zop='{"authorName":"b","itemId":222,"title":"t2","type":"answer"}'>
+      <meta itemprop="url" content="https://www.zhihu.com/question/2/answer/222"><a href="/question/2/answer/222">回答 222</a>
+      <div class="RichContent">正文</div><div class="ContentItem-actions"></div></div></div>
+  </div>
+  <script id="js-initialData" type="text/json">{"initialState":{"entities":{"answers":{"111":{"id":111,"type":"answer","author":{"urlToken":"zhang-san"}},"222":{"id":222,"type":"answer","author":{"urlToken":"li-si"}}},"users":{"zhang-san":{"name":"x"},"li-si":{"name":"y"}},"questions":{"1":{"id":1,"title":"q"}}},"topstory":{"recommend":{"serverPayloadOrigin":{"data":[{"type":"feed","target":{"type":"answer","id":111}}]}}}},"subAppName":"main"}</script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

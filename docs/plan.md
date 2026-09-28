@@ -253,6 +253,8 @@ zhihu-browser/
 
 逐项验证方案里的关键假设，产出 `docs/spike-report.md` 和第一批 fixtures，并据此修订本计划。
 
+验证工具：[`spike/m0-probe`](../spike/m0-probe/)，一个只读记录页面结构的最小扩展，使用方法见其 README。
+
 - [ ] 各类页面 `js-initialData` 的结构；翻页、加载更多、评论所用接口的响应结构
 - [ ] 在 MAIN world 拦截并改写 `fetch` / XHR 响应是否稳定；一页数据被全部过滤时，分页是否仍然正常
 - [ ] 首屏：预隐藏样式的效果；能否在知乎前端启动前改写 `js-initialData`

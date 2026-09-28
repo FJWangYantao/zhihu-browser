@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>M0 探针报告</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    main { max-width: 980px; margin: 0 auto; padding: 24px 16px 64px; }
+    header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    section { border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-top: 16px; }
+    section > h2 { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    details { margin-top: 8px; }
+    summary { cursor: pointer; color: var(--muted); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 4px 16px; }
+    textarea { width: 100%; min-height: 80px; font: inherit; color: inherit; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px; }
+    .table-wrap { overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>M0 探针报告</h1>
+        <p class="muted" id="meta"></p>
+      </div>
+      <div class="actions">
+        <button id="download" class="primary">下载 JSON</button>
+        <button id="copy">复制 JSON</button>
+        <button id="clear">清空数据</button>
+      </div>
+    </header>
+    <p class="muted">报告只包含结构信息（字段名、类型、数量、类型枚举值）和计时，不包含正文、用户名、内容 id 或 Cookie。发送前可以先下载 JSON 自己检查一遍。</p>
+    <div id="root"></div>
+  </main>
+  <script src="report.js"></script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "zhihu-browser M0 探针",
+  "version": "0.1.0",
+  "description": "zhihu-browser M0 技术验证：只读取页面结构并在本地记录，不上传任何数据。",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "m0-probe@zhihu-browser.local",
+      "strict_min_version": "128.0"
+    }
+  },
+  "permissions": [
+    "storage"
+  ],
+  "optional_permissions": [
+    "userScripts"
+  ],
+  "host_permissions": [
+    "*://*.zhihu.com/*"
+  ],
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "M0 探针"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.zhihu.com/*"
+      ],
+      "js": [
+        "main-world.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "*://*.zhihu.com/*"
+      ],
+      "js": [
+        "isolated.js"
+      ],
+      "run_at": "document_start",
+      "css": [
+        "prehide.css"
+      ]
+    }
+  ]
+}
