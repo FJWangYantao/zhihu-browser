@@ -328,7 +328,9 @@ describe('映射样式（theme.css）', () => {
   ]
 
   test('规则都能解析', () => {
-    expect(rules.length).toBe(css.match(/\{/g)?.length)
+    // 除了 @property 这类 at 规则，每个 { 都是一条样式规则
+    const atRules = css.match(/^@[\w-]+[^{]*\{/gm)?.length ?? 0
+    expect(rules.length).toBe((css.match(/\{/g)?.length ?? 0) - atRules)
   })
 
   /** 在 <html> 上做标记，再重新生成页面元素（happy-dom 会缓存元素的选择器匹配结果，祖先的属性变了也不刷新） */

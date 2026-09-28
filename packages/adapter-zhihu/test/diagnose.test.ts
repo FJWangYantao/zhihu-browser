@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import { describeElement, describePage } from '../src/diagnose'
 import { feedCard, flush, html, type Setup, setup } from './page'
 
@@ -54,6 +54,30 @@ describe('页面结构诊断', () => {
     expect(report).toContain('…另有 3 个')
     // 包含内容的一支总是列出来
     expect(report).toMatch(/▶ div\.Card\.TopstoryItem/)
+  })
+
+  test('暗色时：列出补丁改了多少、另外设置了 data-theme 的元素、仍然看不清的文字和白色块', () => {
+    vi.spyOn(Element.prototype, 'getClientRects').mockReturnValue([{}] as unknown as DOMRectList)
+    const style = html(
+      '<style>body { background-color: #121212; } .t { color: #121212; } .w { background-color: #ffffff; }</style>',
+    )
+    document.head.append(style)
+    document.documentElement.setAttribute('data-theme', 'dark')
+    document.body.append(
+      html(
+        '<div class="CommentBox"><div data-theme="light" class="css-x"><span class="t">看不清的名字</span></div><div class="w css-chip">白块</div></div>',
+      ),
+    )
+    const report = describePage(document, { page: { type: 'question', url: 'https://www.zhihu.com/', params: {} } })
+    expect(report).toContain('暗色补丁改了：背景 0 个、文字 0 个、边框 0 个')
+    expect(report).toContain('页面里另外设置了 data-theme 的元素：1 个\n    · div.css-x data-theme="light"')
+    expect(report).toMatch(/仍然看不清的文字：\n {4}· span\.t < div\.css-x < div\.CommentBox {2}文字 /)
+    expect(report).toMatch(/暗色背景上仍然是浅色的块：\n {4}· div\.w\.css-chip < div\.CommentBox < body {2}背景 /)
+    expect(report).not.toContain('看不清的名字')
+    document.documentElement.removeAttribute('data-theme')
+    style.remove()
+    document.body.replaceChildren()
+    vi.restoreAllMocks()
   })
 
   test('页面上没有内容时说明', () => {

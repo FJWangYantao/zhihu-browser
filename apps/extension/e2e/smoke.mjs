@@ -418,6 +418,58 @@ await check('主题：跟随系统的浅色 / 暗色', async () => {
   assert.equal((await look(question)).fontSize, '15px')
 })
 
+await check('暗色补丁：评论区、加载中的占位、右下角按钮、导航栏文字没跟着变暗时补上', async () => {
+  await question.bringToFront()
+  const colors = () =>
+    question.evaluate(() => {
+      const css = (selector, name) => getComputedStyle(document.querySelector(selector))[name]
+      return {
+        text: css('.css-ctext', 'color'),
+        author: css('.css-cauthor', 'color'),
+        head: css('.css-chead', 'color'),
+        meta: css('.css-cmeta', 'color'),
+        sort: css('.css-sort', 'backgroundColor'),
+        border: css('.css-cbox', 'borderTopColor'),
+        corner: css('.css-corner', 'backgroundColor'),
+        icon: css('.css-corner', 'color'),
+        tab: css('.css-tab', 'color'),
+      }
+    })
+  assert.equal((await colors()).text, 'rgb(18, 18, 18)')
+  await setTheme({ colorScheme: 'dark' })
+  await waitFor(question, () => getComputedStyle(document.querySelector('.css-ctext')).color === 'rgb(211, 211, 211)')
+  assert.deepEqual(await colors(), {
+    text: 'rgb(211, 211, 211)',
+    author: 'rgb(211, 211, 211)',
+    head: 'rgb(211, 211, 211)',
+    // 次要文字本来就看得清，不动
+    meta: 'rgb(133, 144, 166)',
+    sort: 'rgb(31, 31, 31)',
+    border: 'rgb(58, 58, 58)',
+    corner: 'rgb(31, 31, 31)',
+    icon: 'rgb(211, 211, 211)',
+    tab: 'rgb(211, 211, 211)',
+  })
+  // 加载中的占位：插入之后、绘制之前就已经是暗色，不会先闪白
+  const skeleton = await question.evaluate(
+    () =>
+      new Promise(resolve => {
+        const el = document.createElement('div')
+        el.className = 'css-skeleton'
+        document.getElementById('answers').append(el)
+        requestAnimationFrame(() => resolve(getComputedStyle(el).backgroundColor))
+      }),
+  )
+  assert.equal(skeleton, 'rgb(31, 31, 31)')
+  // 跟随知乎：去掉所有补丁
+  await setTheme({})
+  await waitFor(question, () => getComputedStyle(document.querySelector('.css-ctext')).color === 'rgb(18, 18, 18)')
+  const left = await question.evaluate(
+    () => document.querySelectorAll('[data-zb-dark-bg], [data-zb-dark-text], [data-zb-dark-border]').length,
+  )
+  assert.equal(left, 0)
+})
+
 await check('主题：右侧栏的类名对不上时，按位置找到并隐藏', async () => {
   // 模拟的首页右侧栏只有自动生成的类名，主栏外面还包着一层
   const sidebar = () => home.evaluate(() => getComputedStyle(document.querySelector('.css-1qyytj7')).display)

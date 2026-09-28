@@ -77,3 +77,57 @@ html[data-theme="dark"] body {
 html[data-theme="dark"] .ContentItem {
   background: #1b1b1b;
 }
+
+/* 模拟知乎在脚本里按浅色主题生成的样式：导航栏的标签、评论区、加载中的占位、右下角的按钮，不跟着 data-theme 变暗 */
+.css-tab {
+  margin-left: 24px;
+  color: #444;
+}
+
+.css-cbox {
+  margin: 10px 0;
+  padding: 16px 20px;
+  border: 1px solid #ebebeb;
+}
+
+.css-chead,
+.css-cauthor,
+.css-ctext {
+  color: #121212;
+}
+
+.css-cmeta,
+.css-chip2 {
+  color: #8590a6;
+}
+
+.css-sort {
+  display: inline-flex;
+  margin-left: 16px;
+  padding: 2px;
+  background: #f6f6f6;
+}
+
+.css-chip {
+  padding: 2px 8px;
+  color: #121212;
+  background: #fff;
+}
+
+.css-skeleton {
+  height: 120px;
+  margin-bottom: 10px;
+  background: #fff;
+}
+
+.css-corner {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 12px;
+  color: #121212;
+  background: #fff;
+}

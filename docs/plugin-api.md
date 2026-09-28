@@ -419,7 +419,7 @@ z.addStyle(`
 
 | token | 取值 | 作用 |
 |---|---|---|
-| `--zb-color-scheme` | `light`、`dark` | 使用知乎自带的浅色 / 暗色样式；暗色下宿主补上顶部导航栏 |
+| `--zb-color-scheme` | `light`、`dark` | 使用知乎自带的浅色 / 暗色样式。暗色下宿主补上顶部导航栏，并按颜色找出没跟着变暗的模块（评论区、加载中的占位等）改成暗色 |
 | `--zb-font-family` | 同 CSS 的 `font-family` | 正文和标题的字体 |
 | `--zb-font-size` | 长度，如 `17px` | 正文字号 |
 | `--zb-line-height` | 数字，如 `1.8` | 正文行高 |

@@ -22,6 +22,27 @@ html[data-zb-scheme="dark"] .AppHeader {
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) !important;
 }
 
+/*
+ * 暗色补丁（src/dom/dark-patch.ts）：有些模块不跟着 data-theme 变暗（评论区、加载中的占位、右下角的按钮等），
+ * 按颜色找出来做了标记：白色块改成暗色，看不清的文字改亮（有颜色的保留色相），浅色边框改暗。
+ */
+@property --zb-dark-text {
+  syntax: "*";
+  inherits: false;
+}
+
+html[data-zb-scheme="dark"] [data-zb-dark-bg] {
+  background-color: #1f1f1f !important;
+}
+
+html[data-zb-scheme="dark"] [data-zb-dark-text] {
+  color: var(--zb-dark-text, #d3d3d3) !important;
+}
+
+html[data-zb-scheme="dark"] [data-zb-dark-border] {
+  border-color: #3a3a3a !important;
+}
+
 /* ---------- 正文：字体、字号、行高 ---------- */
 
 html[data-zb-tokens~="font-family"] :is(.RichText, .ContentItem-title, .QuestionHeader-title, .Post-Title) {
