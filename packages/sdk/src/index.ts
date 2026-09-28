@@ -291,14 +291,14 @@ export interface PluginStorage {
   keys(): Promise<string[]>
 }
 
-/** 允许 z.fetch 访问的域名，如 'net:api.example.com'；'net:*.example.com' 匹配所有子域名。 */
+/** 允许 z.fetch 访问的域名，如 'net:api.example.com'；'net:*.example.com' 匹配 example.com 本身及其所有子域名。 */
 export type Permission = `net:${string}`
 
 export interface FetchInit {
   method?: string
   headers?: Record<string, string>
   body?: string
-  /** 超时时间（毫秒），默认 30000 */
+  /** 超时时间（毫秒），默认 30000，最长 120000 */
   timeout?: number
 }
 

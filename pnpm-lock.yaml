@@ -31,6 +31,19 @@ importers:
         specifier: ^0.21.4
         version: 0.21.4(rolldown@1.2.11)(typescript@7.0.2)(vite@8.3.1(jiti@2.7.0))
 
+  packages/core:
+    dependencies:
+      '@zhihu-browser/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+    devDependencies:
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.2
+        version: 5.0.2(vite@8.3.1(jiti@2.7.0))
+
   packages/sdk:
     devDependencies:
       typescript:

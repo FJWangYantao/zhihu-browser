@@ -63,7 +63,7 @@ export interface PluginMeta {
 ## 3. 生命周期
 
 1. 页面加载时，宿主依次激活已启用的插件：先加载它的设置，再调用默认函数。
-2. 插件在默认函数里注册钩子、命令、快捷键、样式等。默认函数应该尽快返回，不要在里面做耗时的事。
+2. 插件在默认函数里注册钩子、命令、快捷键、样式等。默认函数应该尽快返回，不要在里面做耗时的事。默认函数也可以是 `async` 函数，它最终返回的清理函数同样会被调用。
 3. 知乎是单页应用，切换页面**不会**重新执行默认函数。需要按页面做事时，使用 `z.on('page', …)`。
 4. 插件被停用、重载或因出错被熔断时，宿主会撤销它注册的一切，并调用它返回的清理函数（如果有）。
 
@@ -149,7 +149,7 @@ export interface PageContext {
 }
 ```
 
-`z.page()` 返回当前页面。`z.on('page')` 在插件激活时对当前页面触发一次，之后每次切换页面再触发。只和当前页面有关的资源，用 `ctx.signal` 清理：
+`z.page()` 返回当前页面。`z.on('page')` 在插件激活时对当前页面触发一次，之后每次切换页面再触发；插件稍后才注册的页面钩子，也会马上收到当前页面。同一个页面只会交给同一个钩子一次。只和当前页面有关的资源，用 `ctx.signal` 清理：
 
 ```ts
 z.on('page', (page, ctx) => {
@@ -206,7 +206,7 @@ z.on('content', (content, ctx) => {
 })
 ```
 
-知乎重新渲染一块内容（元素被替换）时，会对新元素再调用一次，所以处理函数要能安全地重复执行。元素被移除后，插件添加的界面元素会被清理，`ctx.signal` 中止。
+注册渲染钩子时，页面上已经有的内容会补发给它，所以插件晚启用、热重载后也不会漏掉内容；同一块内容只会交给同一个钩子一次。知乎重新渲染一块内容（元素被替换）时，会对新元素再调用一次，所以处理函数要能安全地重复执行。元素被移除后，插件添加的界面元素会被清理，`ctx.signal` 中止。
 
 ### 7.2 上下文
 
@@ -294,8 +294,8 @@ z.registerCommand('collapse-all', { title: '收起全部回答', when: ['questio
 z.registerShortcut('shift+c', collapseAll, { description: '收起全部回答', when: ['question', 'answer'] })
 ```
 
-- 命令出现在宿主提供的命令面板里，命令面板的快捷键可以在设置中修改。命令 `id` 在插件内唯一，宿主会自动加上插件 id 作为前缀。
-- 快捷键写法：`'j'`、`'shift+j'`、`'mod+enter'`（`mod` 在 macOS 上是 ⌘，其他系统是 Ctrl），按键序列写成 `'g g'`。
+- 命令出现在宿主提供的命令面板里，命令面板的快捷键可以在设置中修改。命令 `id` 在插件内唯一（重复注册会报错），宿主会自动加上插件 id 作为前缀。
+- 快捷键写法：`'j'`、`'shift+j'`、`'mod+enter'`（`mod` 在 macOS 上是 ⌘，其他系统是 Ctrl），按键序列写成 `'g g'`。修饰键有 `mod`、`ctrl`、`alt`、`shift`、`meta`；除单个字符外，还支持 `enter`、`escape`、`space`、`tab`、`backspace`、`delete`、方向键 `up` / `down` / `left` / `right`、`pageup`、`pagedown`、`home`、`end`、`f1`～`f12`。写法不对时，注册会报错。
 - 焦点在输入框、文本框或可编辑区域时，快捷键不触发。
 - 多个插件绑定同一个快捷键时，先注册的生效，后注册的在设置页显示冲突提示；用户可以在设置页改键。
 
@@ -323,7 +323,7 @@ export interface Settings<S> {
 }
 ```
 
-`text` 是多行文本，`select` 的 `options` 是"值 → 显示文字"，`list` 是字符串列表。
+`text` 是多行文本，`select` 的 `options` 是"值 → 显示文字"，`list` 是字符串列表。`get` 读到的值是只读的（比如不能直接往列表里 `push`），要修改请用 `set`；保存下来的值不符合定义时，宿主会改用默认值。
 
 示例：一个带"屏蔽作者"按钮的插件。
 
@@ -439,6 +439,7 @@ export interface PluginStorage {
 ```
 
 - 数据只保存在本机。
+- 键是 1～256 个字符的字符串。
 - 每个插件默认配额 5 MB（待定）。
 - 卸载插件时，用户可以选择是否同时删除它的数据。
 
@@ -473,7 +474,7 @@ export interface FetchInit {
   method?: string
   headers?: Record<string, string>
   body?: string
-  /** 超时时间（毫秒），默认 30000 */
+  /** 超时时间（毫秒），默认 30000，最长 120000 */
   timeout?: number
 }
 
@@ -493,7 +494,7 @@ export interface FetchResponse {
 ### 12.2 权限
 
 ```ts
-/** 允许 z.fetch 访问的域名，如 'net:api.example.com'；'net:*.example.com' 匹配所有子域名 */
+/** 允许 z.fetch 访问的域名，如 'net:api.example.com'；'net:*.example.com' 匹配 example.com 本身及其所有子域名 */
 export type Permission = `net:${string}`
 ```
 

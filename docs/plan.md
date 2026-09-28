@@ -278,7 +278,11 @@ zhihu-browser/
 
 ### M1：核心和首批官方插件（Chrome / Edge）
 
-**进度**：仓库骨架和 `sdk` 类型 v0 已完成（TypeScript 7、Vitest 5、WXT 0.21、Biome 2；CI 里对文档示例做类型检查）。下一步是 `core` 和 `adapter-zhihu`。
+**进度**：
+
+- 仓库骨架和 `sdk` 类型 v0 已完成（TypeScript 7、Vitest 5、WXT 0.21、Biome 2；CI 里对文档示例做类型检查）。
+- `core` 已完成：生命周期、钩子调度（含补发）、隔离与熔断、耗时统计、设置、存储、网络权限、命令与快捷键登记，54 个测试。
+- 下一步：`adapter-zhihu`，以及扩展里对接 `chrome.storage` 等宿主能力。
 
 - 仓库骨架：WXT + pnpm workspace + Biome + Vitest + CI
 - `sdk` 类型 v0；`core`：生命周期、钩子调度、隔离与熔断、设置、存储

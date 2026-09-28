@@ -35,6 +35,7 @@ pnpm test        # 测试（Vitest）
 |---|---|
 | `apps/extension` | 浏览器扩展（WXT） |
 | `packages/sdk` | 插件 API 的类型定义 |
+| `packages/core` | 插件宿主：生命周期、钩子调度、隔离与熔断、设置、存储、权限 |
 | `spike/m0-probe` | M0 技术验证用的探针扩展 |
 
 ## 许可证与声明
