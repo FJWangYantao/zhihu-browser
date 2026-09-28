@@ -1,7 +1,8 @@
 # 插件 API（草案 v0）
 
-> **状态**：草案，尚未实现，等待评审；实现之前随时可能调整。
+> **状态**：草案，类型定义已完成，宿主实现中；1.0 之前随时可能调整。
 > 对应 `meta.api = 1`。整体设计见[项目计划](./plan.md)。
+> 类型定义以 [`packages/sdk/src/index.ts`](../packages/sdk/src/index.ts) 为准；本文档里的示例在 CI 中会对照它做类型检查。
 
 这份文档既写给插件作者，也写给帮用户写插件的 AI：读完这一份，就应该能写出正确的插件。
 
@@ -78,7 +79,11 @@ export interface PluginAPI<M extends PluginMeta = PluginMeta> {
 
   // 页面（第 5 节）
   page(): PageInfo
+
+  // 事件：页面切换（第 5 节）；渲染钩子，渲染后（第 7 节）
   on(event: 'page', handler: (page: PageInfo, ctx: PageContext) => void): Dispose
+  on(event: 'content', handler: (content: Content, ctx: ContentContext) => void): Dispose
+  on(event: 'comment', handler: (comment: Comment, ctx: ItemContext) => void): Dispose
 
   // 过滤：渲染前（第 6 节）
   filter(kind: 'feed', fn: (item: FeedItem) => boolean): Dispose
@@ -86,9 +91,7 @@ export interface PluginAPI<M extends PluginMeta = PluginMeta> {
   filter(kind: 'comments', fn: (comment: Comment) => boolean): Dispose
   filter(kind: 'search', fn: (result: SearchResult) => boolean): Dispose
 
-  // 渲染钩子：渲染后（第 7 节）
-  on(event: 'content', handler: (content: Content, ctx: ContentContext) => void): Dispose
-  on(event: 'comment', handler: (comment: Comment, ctx: ItemContext) => void): Dispose
+  // 已识别的内容（第 7.3 节）
   contents: {
     all(): ContentHandle[]
     current(): ContentHandle | undefined

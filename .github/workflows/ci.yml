@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: 启用 pnpm
+        run: corepack enable
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 代码规范
+        run: pnpm lint
+
+      - name: 类型检查（含文档示例）
+        run: pnpm typecheck
+
+      - name: 测试
+        run: pnpm test
+
+      - name: 构建扩展
+        run: pnpm build
+
+      - name: 上传构建好的扩展
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhihu-browser-chrome-mv3
+          path: apps/extension/.output/chrome-mv3

@@ -1,0 +1,22 @@
+{
+  "name": "zhihu-browser",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @zhihu-browser/extension dev",
+    "build": "pnpm --filter @zhihu-browser/extension build",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "typecheck": "pnpm -r typecheck && node scripts/check-doc-examples.mjs",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}
