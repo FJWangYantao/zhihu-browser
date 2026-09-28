@@ -227,6 +227,22 @@ describe('界面工具', () => {
     expect($('.ContentItem')?.hasAttribute('data-zb-fold-open')).toBe(true)
     expect(handle?.isVisible()).toBe(false)
   })
+
+  test('内容操作：收起只点文字是"收起"的按钮', async () => {
+    s = await setup()
+    s.root.append(html(feedCard('answer', '1')))
+    await flush()
+    const clicks: string[] = []
+    const actions = $('.ContentItem-actions') as HTMLElement
+    actions.insertAdjacentHTML('afterbegin', '<button class="ContentItem-rightButton">不感兴趣</button>')
+    for (const b of actions.querySelectorAll('button'))
+      b.addEventListener('click', () => clicks.push(b.textContent ?? ''))
+    s.adapter.contents.all()[0]?.collapse()
+    expect(clicks).toEqual(['收起'])
+    actions.querySelector('button:last-child')?.remove()
+    s.adapter.contents.all()[0]?.collapse()
+    expect(clicks).toEqual(['收起'])
+  })
 })
 
 describe('各类页面', () => {

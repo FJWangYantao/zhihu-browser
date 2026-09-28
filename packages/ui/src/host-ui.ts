@@ -1,6 +1,6 @@
 // 把界面接到宿主上：键盘快捷键、命令面板和内置命令、插件出错时的提示。
 
-import { type Host, normalizeShortcut, type Platform, resolveMod } from '@zhihu-browser/core'
+import { formatShortcut, type Host, normalizeShortcut, type Platform, resolveMod } from '@zhihu-browser/core'
 import type { Dispose } from '@zhihu-browser/sdk'
 import { listenKeys } from './keyboard'
 import type { PageUI } from './page-ui'
@@ -51,13 +51,22 @@ export function connectHostUI(options: HostUIOptions): HostUI {
   }
 
   function items(): PaletteItem[] {
-    const commands = host.commands().map(c => ({
-      id: c.id,
-      title: c.title,
-      source: sourceName(host, c.pluginId),
-      keywords: c.keywords,
-      run: () => host.runCommand(c.id),
-    }))
+    // 命令的标题和同一个插件某个快捷键的说明相同时，在命令旁边显示这个快捷键
+    const keys = new Map<string, string>()
+    for (const s of host.shortcuts()) {
+      if (s.keys && !s.conflictWith) keys.set(`${s.pluginId}\n${s.description}`, s.keys)
+    }
+    const commands = host.commands().map(c => {
+      const shortcut = keys.get(`${c.pluginId}\n${c.title}`)
+      return {
+        id: c.id,
+        title: c.title,
+        source: sourceName(host, c.pluginId),
+        keywords: c.keywords,
+        ...(shortcut ? { shortcut: formatShortcut(shortcut, platform) } : {}),
+        run: () => host.runCommand(c.id),
+      }
+    })
     return [...commands, ...builtins.map(b => ({ ...b, source: 'zhihu-browser' }))]
   }
 

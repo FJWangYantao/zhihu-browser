@@ -105,6 +105,8 @@ describe('命令面板', () => {
     expect(ui.hasModal()).toBe(true)
     expect(titles()).toEqual(['回到顶部', '收起全部回答', '查看快捷键', '插件状态与日志', '打开设置页'])
     expect(options()[0]?.querySelector('.source')?.textContent).toBe('导航')
+    // 命令和快捷键的标题相同：显示快捷键
+    expect(options().map(o => o.querySelector('kbd')?.textContent ?? '')).toEqual(['G G', '', '', '', ''])
     type('收起')
     expect(titles()).toEqual(['收起全部回答'])
     type('')
@@ -115,6 +117,21 @@ describe('命令面板', () => {
     press({ key: 'Enter' }, input)
     expect(ui.hasModal()).toBe(false)
     expect(calls).toEqual(['cmd:collapse'])
+  })
+
+  test('命令旁边只显示生效的快捷键', async () => {
+    await setup({
+      plugins: [
+        plugin('p', '插件', z => {
+          // 和打开命令面板的快捷键冲突，不生效
+          z.registerShortcut('mod+k', () => {}, { description: '搜索' })
+          z.registerCommand('search', { title: '搜索', run: () => {} })
+        }),
+      ],
+    })
+    press({ key: 'k', code: 'KeyK', ctrlKey: true })
+    expect(titles()[0]).toBe('搜索')
+    expect(options()[0]?.querySelector('kbd')).toBeNull()
   })
 
   test('面板开着的时候，按键不会触发插件的快捷键；再按一次 Ctrl+K 或按 Esc 关闭', async () => {

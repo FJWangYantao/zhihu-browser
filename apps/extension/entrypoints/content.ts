@@ -1,5 +1,6 @@
 import '@zhihu-browser/adapter-zhihu/styles.css'
-import { createAdapter, findSidebar } from '@zhihu-browser/adapter-zhihu'
+import '@zhihu-browser/adapter-zhihu/theme.css'
+import { createAdapter, findSidebar, syncingStyles } from '@zhihu-browser/adapter-zhihu'
 import { createHost } from '@zhihu-browser/core'
 import { connectHostUI, createPageUI, DEFAULT_PALETTE_KEYS } from '@zhihu-browser/ui'
 import { browser } from 'wxt/browser'
@@ -46,7 +47,8 @@ export default defineContentScript({
           throw new Error('z.fetch 还没有实现（计划在 M2 提供）')
         },
         ui,
-        addStyle: css => ui.addStyle(css),
+        // 插件的样式有增减之后，适配层重新检查主题 token
+        addStyle: syncingStyles(css => ui.addStyle(css), adapter.theme),
         contents: adapter.contents,
       },
     })

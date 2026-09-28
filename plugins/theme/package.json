@@ -1,0 +1,27 @@
+{
+  "name": "@zhihu-browser/plugin-theme",
+  "version": "0.1.0",
+  "private": true,
+  "description": "zhihu-browser 官方插件：主题。暗色、正文字体、字号、行高、主栏宽度、隐藏右侧栏",
+  "license": "MIT",
+  "type": "module",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@zhihu-browser/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@zhihu-browser/core": "workspace:*",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}

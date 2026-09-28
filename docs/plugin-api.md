@@ -1,6 +1,6 @@
 # 插件 API（草案 v0）
 
-> **状态**：草案，1.0 之前随时可能调整。宿主（`packages/core`）和知乎适配层（`packages/adapter-zhihu`）已经实现了本文档的大部分内容，官方插件"屏蔽"就是用它写的；`z.fetch` 计划在 M2 提供，目前调用会报错。
+> **状态**：草案，1.0 之前随时可能调整。宿主（`packages/core`）和知乎适配层（`packages/adapter-zhihu`）已经实现了本文档的大部分内容，四个官方插件（屏蔽、主题、信息增强、键盘浏览）都是用它写的；`z.fetch` 计划在 M2 提供，目前调用会报错。
 > 对应 `meta.api = 1`。整体设计见[项目计划](./plan.md)。
 > 类型定义以 [`packages/sdk/src/index.ts`](../packages/sdk/src/index.ts) 为准；本文档里的示例在 CI 中会对照它做类型检查。
 
@@ -301,6 +301,7 @@ z.registerShortcut('shift+c', collapseAll, { description: '收起全部回答', 
 - 按键序列的两次按键之间最多间隔 1 秒。一个键如果已经单独绑定，以它开头的序列就不会触发，例如同时注册了 `'g'` 和 `'g g'` 时，按 g 只会执行 `'g'`。
 - 焦点在输入框、文本框、可编辑区域或 zhihu-browser 自己的界面里时，快捷键不触发。
 - 冲突时，宿主自己的快捷键（打开命令面板）优先；插件之间先注册的生效。冲突的快捷键在设置页和"查看快捷键"里有提示；用户可以在设置页改键或停用。
+- 命令的标题（`title`）和同一个插件某个快捷键的说明（`description`）相同时，命令面板会在命令旁边显示这个快捷键。
 
 ## 9. 设置
 
@@ -402,33 +403,32 @@ export type GlobalSlot =
 
 `z.addStyle(css)` 向知乎页面注入全局样式，插件停用时自动移除。直接针对知乎选择器的样式属于 `unstable`。
 
-主题应当优先设置主题 token（`experimental`）。token 是宿主定义的一组 CSS 变量，由宿主负责映射到知乎页面上：
+主题应当优先设置主题 token（`experimental`）。token 是宿主定义的一组 CSS 变量，写在 `:root` 上，由宿主负责映射到知乎页面上；知乎改版时宿主更新映射，用 token 写的主题不用改。官方插件"主题"就是这样写的。
 
 ```ts
 z.addStyle(`
   :root {
     --zb-font-family: "LXGW WenKai", serif;
-    --zb-content-width: 800px;
+    --zb-content-width: 960px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --zb-color-scheme: dark; }
   }
 `)
 ```
 
-首批 token（草案）：
+| token | 取值 | 作用 |
+|---|---|---|
+| `--zb-color-scheme` | `light`、`dark` | 使用知乎自带的浅色 / 暗色样式；暗色下宿主补上顶部导航栏 |
+| `--zb-font-family` | 同 CSS 的 `font-family` | 正文和标题的字体 |
+| `--zb-font-size` | 长度，如 `17px` | 正文字号 |
+| `--zb-line-height` | 数字，如 `1.8` | 正文行高 |
+| `--zb-content-width` | 长度，如 `960px` | 主栏宽度（宽屏）；窗口不够宽时自动缩小 |
+| `--zb-sidebar` | `none` | 隐藏右侧栏；之后挂载的 `sidebar` 挂载点放到右下角的工具栏里 |
 
-| token | 含义 |
-|---|---|
-| `--zb-font-family` | 正文字体 |
-| `--zb-font-size` | 正文字号 |
-| `--zb-line-height` | 正文行高 |
-| `--zb-content-width` | 主栏宽度 |
-| `--zb-color-bg` | 页面背景 |
-| `--zb-color-surface` | 卡片背景 |
-| `--zb-color-text` | 正文颜色 |
-| `--zb-color-text-secondary` | 次要文字颜色 |
-| `--zb-color-accent` | 强调色（链接、按钮） |
-| `--zb-color-border` | 分割线与边框 |
-
-没有设置的 token 保持知乎原样。
+- 没有设置的 token 保持知乎原样。
+- 宿主在这些时候检查 `:root` 上设置了哪些 token：插件的样式增减之后、系统的浅色 / 暗色设置变化时、知乎切换浅色 / 暗色时。所以 token 可以写在 `@media (prefers-color-scheme: …)` 里，也可以按知乎当前的配色来写（`html[data-theme="dark"] { … }`）；按窗口宽度等其他条件写的 token，条件变了要等到下一次检查才生效。写在其他元素上的 token 不生效。
+- 背景、文字、强调色、边框等颜色 token 计划在 M2 提供。
 
 ## 11. 存储
 

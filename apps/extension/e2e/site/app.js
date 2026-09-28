@@ -28,11 +28,12 @@
       <h2 class="ContentItem-title"><a href="${url}"></a></h2>
       <div itemprop="author" itemscope><meta itemprop="name" content=""><meta itemprop="url" content="https://www.zhihu.com/people/${target.author.url_token}"></div>
       <meta itemprop="url" content="${url}">
-      <div class="RichContent is-collapsed"><div class="RichContent-inner"></div><button class="ContentItem-more">阅读全文</button></div>
-      <div class="ContentItem-actions"><button class="Button VoteButton">赞同 ${target.voteup_count}</button></div>`
+      <div class="RichContent is-collapsed"><div class="RichContent-inner"><div class="RichText ztext"></div></div><button class="ContentItem-more">阅读全文</button></div>
+      <div class="ContentItem-actions"><button class="Button VoteButton">赞同 ${target.voteup_count}</button><button class="ContentItem-rightButton">收起</button></div>`
     item.querySelector('a').textContent = title
     item.querySelector('meta[itemprop="name"]').setAttribute('content', target.author.name)
-    item.querySelector('.RichContent-inner').textContent = target.excerpt
+    // 模拟数据里的正文是固定的几段文字
+    item.querySelector('.RichText').innerHTML = target.content
     wrapper.append(item)
     wrapper.querySelectorAll('*').forEach(fiber)
     return wrapper
@@ -78,6 +79,15 @@
     }
     xhr.send()
   }
+
+  // "阅读全文"和"收起"：切换正文的折叠（样式在 site.css）
+  document.addEventListener('click', event => {
+    const button = event.target.closest?.('.ContentItem-more, .ContentItem-rightButton')
+    const rich = button?.closest('.ContentItem')?.querySelector('.RichContent')
+    if (!rich) return
+    rich.classList.toggle('is-collapsed', button.matches('.ContentItem-rightButton'))
+    app.toggles = (app.toggles ?? 0) + 1
+  })
 
   // 模拟脚本加载和激活需要一点时间
   setTimeout(() => {

@@ -26,8 +26,9 @@ const ACTIONS_SELECTOR = '.ContentItem-actions'
 /** 全局挂载点 sidebar：页面的右侧栏 */
 export const SIDEBAR_SELECTOR = '.Question-sideColumn, .GlobalSideBar'
 
-/** 页面的右侧栏；没有时返回 null */
+/** 页面的右侧栏；没有、或者被主题隐藏了（--zb-sidebar: none）时返回 null */
 export function findSidebar(doc: Document = document): Element | null {
+  if (doc.documentElement.getAttribute('data-zb-sidebar') === 'none') return null
   return doc.querySelector(SIDEBAR_SELECTOR)
 }
 
@@ -207,5 +208,6 @@ export function bodyOf(el: HTMLElement): HTMLElement | undefined {
 
 /** 展开全文："阅读全文"按钮 */
 export const EXPAND_SELECTOR = '.ContentItem-more'
-/** 收起："收起"按钮 */
+/** 收起："收起"按钮。只点文字是"收起"的那个，避免误点同一位置的其他按钮 */
 export const COLLAPSE_SELECTOR = '.ContentItem-rightButton'
+export const COLLAPSE_TEXT = '收起'

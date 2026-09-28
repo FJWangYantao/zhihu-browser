@@ -1,0 +1,79 @@
+/* 模拟知乎的页面样式：两栏布局、正文字号、折叠的正文。数值参照知乎的页面（主栏 694px，右侧栏 296px，正文 15px）。 */
+
+body {
+  margin: 0;
+  font-family: sans-serif;
+  color: #121212;
+  background: #f6f6f6;
+}
+
+/* 页面底部留出空间，最后几块内容也能滚到顶部 */
+body::after {
+  display: block;
+  height: 1500px;
+  content: "";
+}
+
+.AppHeader {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: 52px;
+  line-height: 52px;
+  background: #fff;
+}
+
+.QuestionHeader {
+  padding: 16px 0;
+  background: #fff;
+}
+
+.Topstory-container,
+.Question-main {
+  display: flex;
+  justify-content: space-between;
+  width: 1000px;
+  margin: 10px auto;
+}
+
+.Topstory-mainColumn,
+.Question-mainColumn {
+  width: 694px;
+}
+
+.GlobalSideBar,
+.Question-sideColumn {
+  width: 296px;
+  min-height: 200px;
+  background: #fff;
+}
+
+.ContentItem {
+  padding: 16px 20px;
+  margin-bottom: 10px;
+  background: #fff;
+}
+
+.RichText {
+  font-size: 15px;
+  line-height: 1.67;
+}
+
+.RichContent.is-collapsed .RichContent-inner {
+  max-height: 60px;
+  overflow: hidden;
+}
+
+.RichContent:not(.is-collapsed) .ContentItem-more,
+.ContentItem:has(.RichContent.is-collapsed) .ContentItem-rightButton {
+  display: none;
+}
+
+html[data-theme="dark"] body {
+  color: #d3d3d3;
+  background: #121212;
+}
+
+html[data-theme="dark"] .ContentItem {
+  background: #1b1b1b;
+}

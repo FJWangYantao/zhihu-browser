@@ -303,6 +303,12 @@ kbd {
   color: var(--text-secondary);
 }
 
+/* 各行的按键宽度一致，输入框对齐 */
+.shortcut-input kbd {
+  min-width: 5em;
+  box-sizing: border-box;
+}
+
 /* 数据包 */
 .file-button {
   position: relative;

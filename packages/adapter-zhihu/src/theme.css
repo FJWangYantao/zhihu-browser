@@ -1,0 +1,81 @@
+/*
+ * 主题 token → 知乎页面的映射（插件 API 第 10.3 节）。由扩展随内容脚本注入。
+ * src/theme.ts 只把设置了的 token 记在 <html> 上，所以没有设置的 token 不会改变知乎的样子。
+ * 选择器只用知乎有语义的类名（不用 css-xxxxxx）；知乎改版时，和 src/dom/anchors.ts 一样主要改这个文件。
+ * 两栏页面的类名还没有在真实页面上逐一核对，见 docs/plan.md 的 M1 进度。
+ */
+
+/* ---------- 配色：data-theme 由 src/theme.ts 切换，这里补上浏览器控件的配色 ---------- */
+
+html[data-zb-scheme="dark"] {
+  color-scheme: dark;
+}
+
+html[data-zb-scheme="light"] {
+  color-scheme: light;
+}
+
+/* M0 发现知乎自带的暗色样式不能让顶部导航栏完整变暗 */
+html[data-zb-scheme="dark"] .AppHeader {
+  color: #d3d3d3;
+  background-color: #1a1a1a !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+/* ---------- 正文：字体、字号、行高 ---------- */
+
+html[data-zb-tokens~="font-family"] :is(.RichText, .ContentItem-title, .QuestionHeader-title, .Post-Title) {
+  font-family: var(--zb-font-family) !important;
+}
+
+html[data-zb-tokens~="font-size"] .RichText {
+  font-size: var(--zb-font-size) !important;
+}
+
+html[data-zb-tokens~="line-height"] .RichText {
+  line-height: var(--zb-line-height) !important;
+}
+
+/* ---------- 主栏宽度、隐藏右侧栏 ---------- */
+/* 选择器列表不用跨行的 :is()：测试用的 happy-dom 解析不了 */
+
+/* 两栏页面的外框：收缩到内容的宽度并居中。首页 / 热榜、问题页、搜索、用户主页、话题和收藏夹 */
+html:is([data-zb-tokens~="content-width"], [data-zb-sidebar="none"]) .Topstory-container,
+html:is([data-zb-tokens~="content-width"], [data-zb-sidebar="none"]) .Question-main,
+html:is([data-zb-tokens~="content-width"], [data-zb-sidebar="none"]) .QuestionHeader-content,
+html:is([data-zb-tokens~="content-width"], [data-zb-sidebar="none"]) .Search-container,
+html:is([data-zb-tokens~="content-width"], [data-zb-sidebar="none"]) .Profile-main,
+html:is([data-zb-tokens~="content-width"], [data-zb-sidebar="none"]) .ContentLayout {
+  width: fit-content !important;
+  max-width: 100% !important;
+  margin-right: auto !important;
+  margin-left: auto !important;
+}
+
+/* 主栏：用指定的宽度，窗口不够宽时自动缩小 */
+html[data-zb-tokens~="content-width"] .Topstory-mainColumn,
+html[data-zb-tokens~="content-width"] .Question-mainColumn,
+html[data-zb-tokens~="content-width"] .QuestionHeader-main,
+html[data-zb-tokens~="content-width"] .SearchMain,
+html[data-zb-tokens~="content-width"] .Profile-mainColumn,
+html[data-zb-tokens~="content-width"] .ContentLayout-mainColumn {
+  flex-shrink: 1 !important;
+  width: var(--zb-content-width) !important;
+  max-width: 100% !important;
+}
+
+/* 专栏文章：标题和正文 */
+html[data-zb-tokens~="content-width"] :is(.Post-Header, .Post-RichTextContainer) {
+  width: var(--zb-content-width) !important;
+  max-width: 100% !important;
+}
+
+/* 右侧栏；问题页顶部的右侧一栏（关注者、被浏览数）一起隐藏，和下面的回答列表对齐 */
+html[data-zb-sidebar="none"] .GlobalSideBar,
+html[data-zb-sidebar="none"] .Question-sideColumn,
+html[data-zb-sidebar="none"] .QuestionHeader-side,
+html[data-zb-sidebar="none"] .SearchSideBar,
+html[data-zb-sidebar="none"] .Profile-sideColumn,
+html[data-zb-sidebar="none"] .ContentLayout-sideColumn {
+  display: none !important;
+}

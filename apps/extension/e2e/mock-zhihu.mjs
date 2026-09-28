@@ -21,6 +21,9 @@ const AUTHORS = [1, 2, 3].map(n => ({
 }))
 const authorOf = id => AUTHORS[id % 3]
 
+/** 回答正文：几段文字，展开后足够长，页面可以滚动 */
+export const body = id => Array.from({ length: 6 }, (_, i) => `<p>回答正文 ${id} 第 ${i + 1} 段。</p>`).join('')
+
 export function answer(id, question) {
   const title = id % 5 === 0 ? `营销号怎么写文案 ${id}` : `普通问题 ${id}`
   return {
@@ -30,7 +33,7 @@ export function answer(id, question) {
     url: `https://api.zhihu.com/answers/${id}`,
     author: authorOf(id),
     question: question ?? { id: `9${id}`, type: 'question', title, url: '' },
-    content: `<p>回答正文 ${id}</p>`,
+    content: body(id),
     excerpt: `回答摘要 ${id}`,
     created_time: T0,
     updated_time: T0,
@@ -87,8 +90,8 @@ function ssrAnswer(id) {
   return `<div class="List-item"><div class="ContentItem AnswerItem" data-zop="${escapeHtml(zop)}" itemprop="answer" itemscope>
   <div itemprop="author" itemscope><meta itemprop="name" content="${a.author.name}"><meta itemprop="url" content="https://www.zhihu.com/people/${a.author.url_token}"></div>
   <meta itemprop="url" content="${url}">
-  <div class="RichContent"><div class="RichContent-inner">${a.content}</div></div>
-  <div class="ContentItem-actions"><button class="Button VoteButton">赞同 ${a.voteup_count}</button></div>
+  <div class="RichContent is-collapsed"><div class="RichContent-inner"><div class="RichText ztext">${a.content}</div></div><button class="ContentItem-more">阅读全文</button></div>
+  <div class="ContentItem-actions"><button class="Button VoteButton">赞同 ${a.voteup_count}</button><button class="ContentItem-rightButton">收起</button></div>
 </div></div>`
 }
 
@@ -109,7 +112,7 @@ function camel(a) {
 
 function page(body, initialState) {
   return `<!doctype html>
-<html lang="zh"><head><meta charset="utf-8"><title>模拟知乎</title></head>
+<html lang="zh"><head><meta charset="utf-8"><title>模拟知乎</title><link rel="stylesheet" href="/static/site.css"></head>
 <body>
 ${body}
 <script id="js-initialData" type="text/json">${JSON.stringify({ initialState, subAppName: 'main' })}</script>
@@ -118,14 +121,14 @@ ${body}
 }
 
 const HOME = page(
-  '<div id="root"><header class="AppHeader">知乎</header><main><div id="feed" class="Topstory-recommend"></div></main></div>',
+  '<div id="root"><header class="AppHeader">知乎</header><main class="Topstory"><div class="Topstory-container"><div class="Topstory-mainColumn"><div id="feed" class="Topstory-recommend"></div></div><div class="GlobalSideBar">右侧栏</div></div></main></div>',
   {
     entities: { users: { me: { id: 'me', userType: 'people' } } },
   },
 )
 
 const QUESTION_PAGE = page(
-  `<div id="root"><div class="QuestionHeader"><h1 class="QuestionHeader-title">${QUESTION.title}</h1></div><div id="answers">${SSR_ANSWERS.map(ssrAnswer).join('')}</div></div>`,
+  `<div id="root"><header class="AppHeader">知乎</header><div class="QuestionHeader"><h1 class="QuestionHeader-title">${QUESTION.title}</h1></div><main class="Question-main"><div class="Question-mainColumn"><div id="answers">${SSR_ANSWERS.map(ssrAnswer).join('')}</div></div><div class="Question-sideColumn">右侧栏</div></main></div>`,
   {
     entities: {
       answers: Object.fromEntries(SSR_ANSWERS.map(id => [id, camel(answer(id, QUESTION))])),
@@ -158,6 +161,10 @@ export function startMockZhihu(port) {
     if (u.pathname === '/static/app.js') {
       res.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8' })
       return res.end(fs.readFileSync(path.join(here, 'site/app.js')))
+    }
+    if (u.pathname === '/static/site.css') {
+      res.writeHead(200, { 'content-type': 'text/css; charset=utf-8' })
+      return res.end(fs.readFileSync(path.join(here, 'site/site.css')))
     }
     if (u.pathname === '/favicon.ico') {
       res.writeHead(204)

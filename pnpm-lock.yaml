@@ -29,6 +29,15 @@ importers:
       '@zhihu-browser/plugin-filter':
         specifier: workspace:*
         version: link:../../plugins/filter
+      '@zhihu-browser/plugin-info':
+        specifier: workspace:*
+        version: link:../../plugins/info
+      '@zhihu-browser/plugin-shortcuts':
+        specifier: workspace:*
+        version: link:../../plugins/shortcuts
+      '@zhihu-browser/plugin-theme':
+        specifier: workspace:*
+        version: link:../../plugins/theme
       '@zhihu-browser/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
@@ -113,6 +122,54 @@ importers:
         version: 5.0.2(@types/node@26.6.3)(happy-dom@20.14.5)(vite@8.3.1(@types/node@26.6.3)(jiti@2.7.0))
 
   plugins/filter:
+    dependencies:
+      '@zhihu-browser/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+    devDependencies:
+      '@zhihu-browser/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.2
+        version: 5.0.2(@types/node@26.6.3)(happy-dom@20.14.5)(vite@8.3.1(@types/node@26.6.3)(jiti@2.7.0))
+
+  plugins/info:
+    dependencies:
+      '@zhihu-browser/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+    devDependencies:
+      '@zhihu-browser/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.2
+        version: 5.0.2(@types/node@26.6.3)(happy-dom@20.14.5)(vite@8.3.1(@types/node@26.6.3)(jiti@2.7.0))
+
+  plugins/shortcuts:
+    dependencies:
+      '@zhihu-browser/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+    devDependencies:
+      '@zhihu-browser/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.2
+        version: 5.0.2(@types/node@26.6.3)(happy-dom@20.14.5)(vite@8.3.1(@types/node@26.6.3)(jiti@2.7.0))
+
+  plugins/theme:
     dependencies:
       '@zhihu-browser/sdk':
         specifier: workspace:*

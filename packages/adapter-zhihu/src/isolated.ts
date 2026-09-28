@@ -20,6 +20,7 @@ import { classify, type Filters, processResponse } from './endpoints'
 import { keyOf } from './refs'
 import { isSubject, pageInfo } from './routes'
 import { ContentStore } from './store'
+import { createThemeSync, type ThemeSync } from './theme'
 import { withoutHash } from './util'
 
 export interface AdapterOptions {
@@ -36,6 +37,8 @@ export interface Adapter {
   /** 当前页面上已识别的内容，交给宿主 */
   readonly contents: HostServices['contents']
   readonly store: ContentStore
+  /** 主题 token 的映射：插件的样式有增减之后调用 theme.sync()（见 syncingStyles） */
+  readonly theme: ThemeSync
   /** 插件已经加载：开始处理接口响应和页面元素 */
   start(host: Host): void
   dispose(): void
@@ -77,6 +80,8 @@ export function createAdapter(options: AdapterOptions = {}): Adapter {
   const hydrationQueue = new Set<() => void>()
   let lastReact: ReactRef[] = []
   let disposed = false
+  const theme = createThemeSync(doc)
+  cleanups.push(theme.dispose)
 
   // ---------- 预隐藏：处理完之前先隐藏内容卡片（样式在 styles.css） ----------
 
@@ -416,6 +421,7 @@ export function createAdapter(options: AdapterOptions = {}): Adapter {
   return {
     contents,
     store,
+    theme,
 
     start(h) {
       if (host || disposed) return

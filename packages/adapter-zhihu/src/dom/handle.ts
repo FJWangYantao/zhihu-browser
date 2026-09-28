@@ -1,5 +1,5 @@
 import type { Content, ContentHandle } from '@zhihu-browser/sdk'
-import { COLLAPSE_SELECTOR, EXPAND_SELECTOR } from './anchors'
+import { COLLAPSE_SELECTOR, COLLAPSE_TEXT, EXPAND_SELECTOR } from './anchors'
 import { isFolded, openFold } from './item-ui'
 
 /** 知乎顶部导航栏的高度：滚动定位和判断"在视口内"时要让开它 */
@@ -18,7 +18,8 @@ export function createHandle(el: HTMLElement, data: () => Content): ContentHandl
       el.querySelector<HTMLElement>(EXPAND_SELECTOR)?.click()
     },
     collapse() {
-      el.querySelector<HTMLElement>(COLLAPSE_SELECTOR)?.click()
+      const buttons = el.querySelectorAll<HTMLElement>(COLLAPSE_SELECTOR)
+      ;[...buttons].find(b => b.textContent?.includes(COLLAPSE_TEXT))?.click()
     },
     scrollIntoView() {
       const w = win()

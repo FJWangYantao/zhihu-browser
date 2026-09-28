@@ -18,6 +18,9 @@
     "@zhihu-browser/adapter-zhihu": "workspace:*",
     "@zhihu-browser/core": "workspace:*",
     "@zhihu-browser/plugin-filter": "workspace:*",
+    "@zhihu-browser/plugin-info": "workspace:*",
+    "@zhihu-browser/plugin-shortcuts": "workspace:*",
+    "@zhihu-browser/plugin-theme": "workspace:*",
     "@zhihu-browser/sdk": "workspace:*",
     "@zhihu-browser/ui": "workspace:*",
     "preact": "^10.29.8"

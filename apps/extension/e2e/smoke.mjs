@@ -1,4 +1,4 @@
-// 端到端冒烟测试：在本地模拟的知乎上加载构建好的扩展，检查"屏蔽"插件从头到尾都能工作。
+// 端到端冒烟测试：在本地模拟的知乎上加载构建好的扩展，检查官方插件从头到尾都能工作。
 // 用法：pnpm --filter @zhihu-browser/extension build && pnpm --filter @zhihu-browser/extension e2e
 // 不访问真实的知乎：用 --host-resolver-rules 把 *.zhihu.com 指向本地服务器。
 
@@ -8,7 +8,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
-import { MORE_ANSWERS, SSR_ANSWERS, startMockZhihu } from './mock-zhihu.mjs'
+import { body, MORE_ANSWERS, SSR_ANSWERS, startMockZhihu } from './mock-zhihu.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const extDir = path.resolve(here, '../.output/chrome-mv3')
@@ -26,6 +26,8 @@ const userDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zb-e2e-'))
 const context = await chromium.launchPersistentContext(userDir, {
   channel: 'chromium',
   headless: true,
+  // 信息增强按本地时区显示时间
+  timezoneId: 'Asia/Shanghai',
   args: [
     `--disable-extensions-except=${extDir}`,
     `--load-extension=${extDir}`,
@@ -56,6 +58,8 @@ const settings = async () => (await storage.get('settings:filter'))['settings:fi
 const setSettings = async values => storage.set({ 'settings:filter': { ...(await settings()), ...values } })
 
 const pageErrors = []
+/** 设置页（在"设置页"一节打开） */
+let options
 async function open(url) {
   const page = await context.newPage()
   page.on('pageerror', e => pageErrors.push(`${url}: ${e.message}`))
@@ -103,6 +107,20 @@ async function until(fn, timeout = 5000) {
     await new Promise(resolve => setTimeout(resolve, 50))
   }
 }
+
+/** 设置页里某个插件的卡片 */
+const pluginCard = name =>
+  options.locator('section.card').filter({ has: options.locator('h2', { hasText: new RegExp(`^${name}`) }) })
+
+/** 快捷键插件注册的快捷键和说明 */
+const SHORTCUTS = [
+  ['j', '下一条内容'],
+  ['k', '上一条内容'],
+  ['o', '展开当前内容'],
+  ['c', '收起当前内容'],
+  ['shift+c', '收起全部内容'],
+  ['g g', '回到顶部'],
+]
 
 // ---------- 首页 ----------
 
@@ -196,7 +214,7 @@ await check('问题页：服务端渲染的回答按作者隐藏，用 XHR 加�
 
 // ---------- 设置页 ----------
 
-const options = await open(`chrome-extension://${extId}/options.html`)
+options = await open(`chrome-extension://${extId}/options.html`)
 await check('设置页显示插件和它的设置项', async () => {
   await options.locator('h2', { hasText: '屏蔽' }).first().waitFor({ timeout: 5000 })
   assert.equal(await options.locator('#filter-keywords').inputValue(), '营销')
@@ -231,19 +249,21 @@ async function runCommand(title) {
   await home.keyboard.press('Enter')
 }
 
-await check('命令面板：Ctrl+K 打开，列出内置命令；可以查看快捷键', async () => {
+await check('命令面板：Ctrl+K 打开，列出插件命令和内置命令；可以查看快捷键', async () => {
   await home.bringToFront()
   await home.keyboard.press('Control+k')
   await palette.waitFor({ timeout: 5000 })
   const titles = await palette.locator('[role="option"] .title').allTextContents()
-  assert.deepEqual(titles, ['查看快捷键', '插件状态与日志', '打开设置页'])
+  assert.deepEqual(titles, [...SHORTCUTS.map(([, title]) => title), '查看快捷键', '插件状态与日志', '打开设置页'])
+  // 命令和快捷键的标题相同：命令旁边显示快捷键
+  assert.equal(await palette.locator('[role="option"]').first().locator('kbd').textContent(), 'J')
   await home.keyboard.press('Escape')
   await palette.waitFor({ state: 'detached', timeout: 5000 })
   await runCommand('快捷键')
   const sheet = home.locator('#zb-root .sheet')
   await sheet.waitFor({ timeout: 5000 })
-  assert.match(await sheet.textContent(), /打开命令面板/)
-  assert.deepEqual(await sheet.locator('kbd').allTextContents(), ['Ctrl+K'])
+  assert.match(await sheet.textContent(), /打开命令面板.*下一条内容/)
+  assert.deepEqual(await sheet.locator('kbd').allTextContents(), ['Ctrl+K', 'J', 'K', 'O', 'C', 'Shift+C', 'G G'])
   await home.keyboard.press('Escape')
 })
 
@@ -259,9 +279,9 @@ await check('在设置页改命令面板的快捷键，知乎页面立即生效'
   const registry = (await storage.get('registry')).registry
   assert.deepEqual(
     registry.shortcuts.map(s => s.id),
-    ['@host:mod+k'],
+    ['@host:mod+k', ...SHORTCUTS.map(([keys]) => `shortcuts:${keys}`)],
   )
-  assert.match(await options.textContent('body'), /已启用的插件没有注册快捷键/)
+  assert.equal(await options.locator('[id="shortcut-shortcuts:g g"]').inputValue(), 'g g')
   await options.locator('#palette-keys').fill('alt+p')
   await options.locator('#palette-keys').blur()
   await until(async () => (await storage.get('paletteKeys')).paletteKeys === 'alt+p')
@@ -279,7 +299,7 @@ await check('在设置页改命令面板的快捷键，知乎页面立即生效'
 await check('数据包：导出当前设置；导入前先预览，导入后知乎页面立即应用', async () => {
   const [download] = await Promise.all([
     options.waitForEvent('download'),
-    options.getByRole('button', { name: '导出为数据包' }).click(),
+    pluginCard('屏蔽').getByRole('button', { name: '导出为数据包' }).click(),
   ])
   assert.equal(download.suggestedFilename(), 'zhihu-browser-filter.json')
   const exported = JSON.parse(fs.readFileSync(await download.path(), 'utf8'))
@@ -299,6 +319,161 @@ await check('数据包：导出当前设置；导入前先预览，导入后知�
   // 14 号的作者是用户3
   await waitFor(home, () => !!document.querySelector('[data-zb-id="answer:14"]')?.closest('[data-zb-hidden]'))
   assert.deepEqual((await settings()).authors, ['用户3 @user-3'])
+})
+
+// ---------- 信息增强、主题、键盘浏览 ----------
+
+await check('设置页：列出四个官方插件，设置项按插件的定义生成', async () => {
+  const titles = await options
+    .locator('section.card h2')
+    .evaluateAll(els => els.map(el => el.firstChild.textContent.trim()))
+  assert.deepEqual(titles, ['屏蔽', '主题', '信息增强', '键盘浏览', '快捷键', '数据包', '安全模式'])
+  assert.deepEqual(await options.locator('#theme-colorScheme option').allTextContents(), [
+    '跟随知乎',
+    '浅色',
+    '暗色',
+    '跟随系统',
+  ])
+  assert.equal(await options.locator('#info-timeFormat').inputValue(), 'datetime')
+  // 键盘浏览没有设置项；它的快捷键列在"快捷键"里
+  assert.equal(await pluginCard('键盘浏览').locator('.fields').count(), 0)
+  const group = options.locator('.shortcut-group', { has: options.locator('h3', { hasText: '键盘浏览' }) })
+  assert.deepEqual(
+    await group.locator('label').allTextContents(),
+    SHORTCUTS.map(([, title]) => title),
+  )
+})
+
+await check('信息增强：内容标题旁显示完整的发布时间和字数', async () => {
+  const badges = await home
+    .locator('[data-zb-id="answer:13"] .ContentItem-title .zb-badge')
+    .evaluateAll(els => els.map(el => `${el.textContent}|${el.getAttribute('data-tone')}`))
+  // 模拟数据的发布时间是 2023-11-14 22:13:20 UTC（北京时间 2023-11-15 06:13:20），没有编辑过
+  const words = body(13)
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, '').length
+  assert.deepEqual(badges, ['发布于 2023-11-15 06:13|muted', `${words} 字|muted`])
+  // 问题页顶部的问题显示提问时间：模拟数据里没有，就不显示
+  assert.equal(await question.locator('.QuestionHeader .zb-badge').count(), 0)
+})
+
+/** 问题页上和主题有关的样式 */
+const look = page =>
+  page.evaluate(() => {
+    const css = selector => getComputedStyle(document.querySelector(selector))
+    return {
+      theme: document.documentElement.getAttribute('data-theme'),
+      fontSize: css('.RichText').fontSize,
+      main: Math.round(document.querySelector('.Question-mainColumn').getBoundingClientRect().width),
+      sidebar: css('.Question-sideColumn').display,
+      header: css('.AppHeader').backgroundColor,
+    }
+  })
+const setTheme = values => storage.set({ 'settings:theme': values })
+
+await check('主题：暗色、字号、主栏宽度、隐藏右侧栏立即生效，停用后恢复原样', async () => {
+  const zhihu = { theme: null, fontSize: '15px', main: 694, sidebar: 'block', header: 'rgb(255, 255, 255)' }
+  assert.deepEqual(await look(question), zhihu)
+  await setTheme({ colorScheme: 'dark', fontSize: '18px', contentWidth: '960px', hideSidebar: true })
+  await waitFor(question, () => document.documentElement.getAttribute('data-theme') === 'dark')
+  assert.deepEqual(await look(question), {
+    theme: 'dark',
+    fontSize: '18px',
+    main: 960,
+    sidebar: 'none',
+    header: 'rgb(26, 26, 26)',
+  })
+  assert.equal(await question.evaluate(() => getComputedStyle(document.documentElement).colorScheme), 'dark')
+  // 设置页显示当前的设置
+  assert.equal(await options.locator('#theme-colorScheme').inputValue(), 'dark')
+  // 界面层（命令面板等）跟随暗色
+  await question.bringToFront()
+  await question.keyboard.press('Control+k')
+  await question.locator('#zb-root .palette').waitFor({ timeout: 5000 })
+  assert.equal(await question.evaluate(() => document.getElementById('zb-root').classList.contains('dark')), true)
+  await question.keyboard.press('Escape')
+
+  await options.getByRole('switch', { name: '启用主题' }).click()
+  await waitFor(question, () => !document.documentElement.hasAttribute('data-theme'))
+  assert.deepEqual(await look(question), zhihu)
+  await options.getByRole('switch', { name: '启用主题' }).click()
+  await waitFor(question, () => document.documentElement.getAttribute('data-theme') === 'dark')
+})
+
+await check('主题：跟随系统的浅色 / 暗色', async () => {
+  await setTheme({ colorScheme: 'system' })
+  await waitFor(question, () => document.documentElement.getAttribute('data-theme') === 'light')
+  await question.emulateMedia({ colorScheme: 'dark' })
+  await waitFor(question, () => document.documentElement.getAttribute('data-theme') === 'dark')
+  await question.emulateMedia({ colorScheme: 'light' })
+  await waitFor(question, () => document.documentElement.getAttribute('data-theme') === 'light')
+  await setTheme({})
+  await waitFor(question, () => !document.documentElement.hasAttribute('data-theme'))
+  assert.equal((await look(question)).fontSize, '15px')
+})
+
+/** 页面上显示着的内容，按顺序 */
+const shownKeys = page =>
+  page.evaluate(() =>
+    [...document.querySelectorAll('[data-zb-id]')]
+      .filter(el => el.getClientRects().length > 0 && !el.hasAttribute('data-zb-fold'))
+      .map(el => el.getAttribute('data-zb-id')),
+  )
+/** 等到某块内容滚动到视口顶部（让开导航栏） */
+const waitAtTop = (page, key) =>
+  waitFor(page, k => Math.abs(document.querySelector(`[data-zb-id="${k}"]`).getBoundingClientRect().top - 60) < 2, key)
+const collapsed = (page, key) =>
+  page.evaluate(k => document.querySelector(`[data-zb-id="${k}"] .RichContent`).classList.contains('is-collapsed'), key)
+
+await check('键盘浏览：j / k 切换内容，o / c 展开收起，g g 回到顶部', async () => {
+  await question.bringToFront()
+  await question.evaluate(() => window.scrollTo(0, 0))
+  const keys = await shownKeys(question)
+  assert.equal(keys[0], 'question:9')
+  assert.ok(keys.length >= 4, `显示着的内容：${keys}`)
+  await question.keyboard.press('j')
+  await waitAtTop(question, keys[1])
+  await question.keyboard.press('j')
+  await waitAtTop(question, keys[2])
+  await question.keyboard.press('k')
+  await waitAtTop(question, keys[1])
+
+  assert.equal(await collapsed(question, keys[1]), true)
+  await question.keyboard.press('o')
+  await waitFor(question, k => !document.querySelector(`[data-zb-id="${k}"] .RichContent.is-collapsed`), keys[1])
+  await question.keyboard.press('c')
+  await waitFor(question, k => !!document.querySelector(`[data-zb-id="${k}"] .RichContent.is-collapsed`), keys[1])
+
+  await question.keyboard.press('g')
+  await question.keyboard.press('g')
+  await waitFor(question, () => window.scrollY === 0)
+  // 输入框里按键不触发
+  await question.evaluate(() => {
+    const input = document.createElement('input')
+    input.id = 'typing'
+    document.querySelector('.QuestionHeader').append(input)
+  })
+  await question.locator('#typing').focus()
+  await question.keyboard.press('j')
+  await question.waitForTimeout(300)
+  assert.equal(await question.evaluate(() => window.scrollY), 0)
+  await question.locator('#typing').evaluate(el => el.remove())
+})
+
+await check('键盘浏览：在设置页改键后立即生效', async () => {
+  const input = options.locator('[id="shortcut-shortcuts:j"]')
+  await input.fill('n')
+  await input.blur()
+  await until(async () => (await storage.get('keymap')).keymap?.['shortcuts:j'] === 'n')
+  await question.bringToFront()
+  const keys = await shownKeys(question)
+  await question.keyboard.press('j')
+  await question.waitForTimeout(300)
+  assert.equal(await question.evaluate(() => window.scrollY), 0)
+  await question.keyboard.press('n')
+  await waitAtTop(question, keys[1])
+  await options.locator('.shortcut', { has: input }).getByRole('button', { name: '恢复默认', exact: true }).click()
+  await until(async () => (await storage.get('keymap')).keymap?.['shortcuts:j'] === undefined)
 })
 
 await check('安全模式：刷新后不运行任何插件', async () => {
