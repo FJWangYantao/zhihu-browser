@@ -3,6 +3,7 @@
 // 用户在面板里看过之后自己决定复制给谁，扩展不会上传。
 
 import type { PageInfo } from '@zhihu-browser/sdk'
+import { backgroundLuminance, hasOwnText, luminance, parseColor, skipForDark, unreadableColor } from './dom/dark-patch'
 
 /** 统计命中数的选择器：dom/anchors.ts 和 theme.css 里用到的类名 */
 export const DIAGNOSE_ANCHORS = [
@@ -97,6 +98,55 @@ function browserName(win: Window): string {
   return m ? `${m[1]} ${m[2]}` : '未知'
 }
 
+/** 暗色检查最多列出几个元素 */
+const MAX_DARK_ITEMS = 10
+
+/** 元素和它往上两层的写法，如 span.a < div.b < div.c */
+const chain = (el: Element) =>
+  [el, el.parentElement, el.parentElement?.parentElement]
+    .filter((e): e is Element => !!e)
+    .map(describeElement)
+    .join(' < ')
+
+/** 暗色时：补丁改了多少、页面里另外设置了 data-theme 的元素、仍然看不清的文字和白色块 */
+function darkReport(doc: Document, win: Window): string[] {
+  const html = doc.documentElement
+  const body = doc.body
+  if (!body || (html.getAttribute('data-theme') !== 'dark' && html.getAttribute('data-zb-scheme') !== 'dark')) return []
+  const count = (selector: string) => doc.querySelectorAll(selector).length
+  const lines = ['', '暗色检查：']
+  lines.push(
+    `  暗色补丁改了：背景 ${count('[data-zb-dark-bg]')} 个、文字 ${count('[data-zb-dark-text]')} 个、边框 ${count('[data-zb-dark-border]')} 个`,
+  )
+  const scopes = [...body.querySelectorAll('[data-theme]')]
+  lines.push(`  页面里另外设置了 data-theme 的元素：${scopes.length} 个`)
+  for (const el of scopes.slice(0, MAX_DARK_ITEMS)) {
+    lines.push(`    · ${describeElement(el)} data-theme="${el.getAttribute('data-theme')}"`)
+  }
+
+  const cache = new Map<Element, number | null>()
+  const unreadable: string[] = []
+  const islands: string[] = []
+  for (const el of body.querySelectorAll('*')) {
+    if (unreadable.length >= MAX_DARK_ITEMS && islands.length >= MAX_DARK_ITEMS) break
+    if (skipForDark(el) || el.getClientRects().length === 0) continue
+    if (hasOwnText(el) && unreadable.length < MAX_DARK_ITEMS) {
+      const color = unreadableColor(el, win, cache)
+      if (color) unreadable.push(`    · ${chain(el)}  文字 ${win.getComputedStyle(el).color}`)
+    }
+    if (islands.length < MAX_DARK_ITEMS && el.parentElement && el !== body) {
+      const bg = parseColor(win.getComputedStyle(el).backgroundColor)
+      const around = backgroundLuminance(el.parentElement, win, cache)
+      if (bg && bg[3] >= 0.8 && luminance(bg) >= 0.6 && around !== null && around < 0.2) {
+        islands.push(`    · ${chain(el)}  背景 ${win.getComputedStyle(el).backgroundColor}`)
+      }
+    }
+  }
+  lines.push(`  仍然看不清的文字：${unreadable.length ? '' : '没有'}`, ...unreadable)
+  lines.push(`  暗色背景上仍然是浅色的块：${islands.length ? '' : '没有'}`, ...islands)
+  return lines
+}
+
 export interface DiagnoseOptions {
   page: PageInfo
   /** 扩展的版本 */
@@ -139,5 +189,6 @@ export function describePage(doc: Document, options: DiagnoseOptions): string {
     lines.push('', `第一块内容（${describeElement(start)}）的内部结构：`)
     tree(start, new Set(), 1, CONTENT_DEPTH - 1, lines)
   }
+  if (win) lines.push(...darkReport(doc, win))
   return lines.join('\n')
 }

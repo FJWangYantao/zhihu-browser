@@ -128,8 +128,14 @@ const HOME = page(
   },
 )
 
+/** 评论区：颜色按浅色主题写死（模拟知乎在脚本里生成的样式），不跟着 data-theme 变暗 */
+const COMMENTS = `<div class="css-cbox">
+  <div class="css-chead">5 条评论<span class="css-sort"><span class="css-chip">默认</span><span class="css-chip2">最新</span></span></div>
+  <div class="css-citem"><a class="css-cauthor" href="/">评论的人</a><div class="css-ctext">评论正文</div><div class="css-cmeta">54 分钟前</div></div>
+</div>`
+
 const QUESTION_PAGE = page(
-  `<div id="root"><header class="AppHeader">知乎</header><div class="QuestionHeader"><h1 class="QuestionHeader-title">${QUESTION.title}</h1></div><main class="Question-main"><div class="Question-mainColumn"><div id="answers">${SSR_ANSWERS.map(ssrAnswer).join('')}</div></div><div class="Question-sideColumn">右侧栏</div></main></div>`,
+  `<div id="root"><header class="AppHeader">知乎<a class="css-tab" href="/">关注</a></header><div class="QuestionHeader"><h1 class="QuestionHeader-title">${QUESTION.title}</h1></div><main class="Question-main"><div class="Question-mainColumn"><div id="answers">${SSR_ANSWERS.map(ssrAnswer).join('')}</div>${COMMENTS}</div><div class="Question-sideColumn">右侧栏</div></main><button class="css-corner" type="button" aria-label="回到顶部"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 3 3 9h10z" fill="currentColor"/></svg></button></div>`,
   {
     entities: {
       answers: Object.fromEntries(SSR_ANSWERS.map(id => [id, camel(answer(id, QUESTION))])),

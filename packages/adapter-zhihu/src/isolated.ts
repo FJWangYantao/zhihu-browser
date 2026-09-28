@@ -15,6 +15,7 @@ import {
   identify,
   isContentElement,
 } from './dom/anchors'
+import { type DarkPatch, startDarkPatch } from './dom/dark-patch'
 import { createHandle, HEADER_OFFSET } from './dom/handle'
 import { addFold, createItemUI, type DecorEnv, type DomItemUI } from './dom/item-ui'
 import { type Columns, findColumns } from './dom/layout'
@@ -84,11 +85,21 @@ export function createAdapter(options: AdapterOptions = {}): Adapter {
   const hydrationQueue = new Set<() => void>()
   let lastReact: ReactRef[] = []
   let disposed = false
-  // 主题要求隐藏右侧栏时，按位置找右侧栏（见 markColumns）
-  const theme = createThemeSync(doc, { onChange: () => scheduleColumns() })
-  cleanups.push(theme.dispose)
+  // 主题要求隐藏右侧栏时，按位置找右侧栏（见 markColumns）；要求暗色时，补上没跟着变暗的模块（见 dom/dark-patch.ts）
+  const theme = createThemeSync(doc, {
+    onChange: () => {
+      scheduleColumns()
+      syncDarkPatch()
+    },
+  })
   let columns: Columns | undefined
   let columnsTimer: number | undefined
+  let darkPatch: DarkPatch | undefined
+  cleanups.push(() => {
+    darkPatch?.dispose()
+    darkPatch = undefined
+  })
+  cleanups.push(theme.dispose)
 
   // ---------- 预隐藏：处理完之前先隐藏内容卡片（样式在 styles.css） ----------
 
@@ -424,6 +435,17 @@ export function createAdapter(options: AdapterOptions = {}): Adapter {
       }
       return undefined
     },
+  }
+
+  // ---------- 暗色补丁：插件要求暗色时运行 ----------
+
+  function syncDarkPatch(): void {
+    const want = !disposed && doc.documentElement?.getAttribute('data-zb-scheme') === 'dark'
+    if (want && !darkPatch) darkPatch = startDarkPatch(doc)
+    else if (!want && darkPatch) {
+      darkPatch.dispose()
+      darkPatch = undefined
+    }
   }
 
   // ---------- 两栏布局：主题隐藏右侧栏时，按位置找右侧栏并做标记（样式在 theme.css） ----------
