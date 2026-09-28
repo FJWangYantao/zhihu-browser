@@ -37,7 +37,7 @@ jobs:
         run: pnpm build
 
       - name: 上传构建好的扩展
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: zhihu-browser-chrome-mv3
           path: apps/extension/.output/chrome-mv3
