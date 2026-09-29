@@ -118,3 +118,87 @@ html[data-theme="dark"] .zb-badge {
   color: #6fa1e6;
   background: rgba(58, 118, 208, 0.2);
 }
+
+/* 健康检查的角落提示：锚点失配时显示，见 health.ts 和 dom/health-notice.ts */
+.zb-health-notice {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(560px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 10px 8px 10px 14px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #444444;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  box-shadow: 0 4px 16px rgba(18, 18, 18, 0.12);
+}
+
+.zb-health-text {
+  flex: 1;
+}
+
+.zb-health-copy,
+.zb-health-close {
+  flex: none;
+  font: inherit;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.zb-health-copy {
+  padding: 4px 10px;
+  color: #ffffff;
+  background: #056de8;
+  white-space: nowrap;
+}
+
+.zb-health-copy:hover {
+  background: #0554b4;
+}
+
+.zb-health-close {
+  padding: 4px 8px;
+  color: #8590a6;
+  background: none;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.zb-health-close:hover {
+  color: #444444;
+}
+
+/* 复制诊断信息的兜底：临时出现的只读文本框 */
+.zb-health-fallback {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+}
+
+html[data-theme="dark"] .zb-health-notice {
+  border-color: #2e2e2e;
+  background: #1e1e1e;
+  color: #d3d3d3;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+html[data-theme="dark"] .zb-health-copy {
+  background: #3a76d0;
+}
+
+html[data-theme="dark"] .zb-health-copy:hover {
+  background: #4c85da;
+}
+
+html[data-theme="dark"] .zb-health-close:hover {
+  color: #d3d3d3;
+}

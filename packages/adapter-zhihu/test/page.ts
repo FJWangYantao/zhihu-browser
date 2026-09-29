@@ -6,6 +6,7 @@ import { type Message, open, TO_ISOLATED, TO_MAIN, type ToIsolated, type ToMain 
 import { type Adapter, createAdapter } from '../src/isolated'
 
 export const flush = () => new Promise(resolve => setTimeout(resolve, 0))
+export const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 export function plugin<M extends PluginMeta>(meta: M, entry: (z: PluginAPI<M>) => unknown): PluginModule {
   return { meta, default: entry as unknown as PluginModule['default'] }
@@ -79,6 +80,8 @@ export async function setup(
     settings?: Record<string, Record<string, unknown>>
     hydrated?: boolean
     start?: boolean
+    /** 第一轮内容锚点健康检查的延迟（毫秒）；默认很长，避免普通测试中途触发，健康检查的测试自己传小的 */
+    healthDelayMs?: number
   } = {},
 ): Promise<Setup> {
   const received: Message<ToMain>[] = []
@@ -91,7 +94,11 @@ export async function setup(
   root.id = 'root'
   document.body.append(root)
 
-  const adapter = createAdapter({ hydrationTimeout: 60_000, routePollInterval: 60_000 })
+  const adapter = createAdapter({
+    hydrationTimeout: 60_000,
+    routePollInterval: 60_000,
+    healthDelayMs: options.healthDelayMs ?? 10_000,
+  })
   const settings = createMemorySettingsBackend(options.settings)
   const host = createHost({
     services: {
