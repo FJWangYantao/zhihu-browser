@@ -277,3 +277,14 @@ export function createItemUI(
     },
   }
 }
+
+/** 什么也不做的界面工具：健康检查停用了"内容上的界面"之后，插件拿到的就是它 */
+export function noopItemUI(): DomItemUI {
+  return {
+    badge: () => noop,
+    fold: () => noop,
+    addAction: () => noop,
+    mount: () => noop,
+    repair: () => {},
+  }
+}
