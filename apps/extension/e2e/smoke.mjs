@@ -24,7 +24,8 @@ if (!fs.existsSync(path.join(extDir, 'manifest.json'))) {
 const server = await startMockZhihu(PORT)
 const userDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zb-e2e-'))
 const context = await chromium.launchPersistentContext(userDir, {
-  channel: 'chromium',
+  // SMOKE_CHANNEL=msedge 可以用 Edge 跑同一套检查（M1 的 Edge 验证）
+  channel: process.env.SMOKE_CHANNEL ?? 'chromium',
   headless: true,
   // 信息增强按本地时区显示时间
   timezoneId: 'Asia/Shanghai',

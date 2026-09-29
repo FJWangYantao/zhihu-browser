@@ -28,7 +28,9 @@ describe('合成的页面样本', () => {
         mkdirSync(dir, { recursive: true })
         writeFileSync(file, text)
       }
-      expect(readFileSync(file, 'utf8')).toBe(text)
+      // git 在 Windows 上检出时可能把换行转成 CRLF，比较时统一掉
+      const read = readFileSync(file, 'utf8').replace(/\r\n/g, '\n')
+      expect(read).toBe(text)
     })
   }
 })

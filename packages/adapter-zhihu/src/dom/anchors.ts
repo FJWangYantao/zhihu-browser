@@ -32,10 +32,17 @@ export function findSidebar(doc: Document = document): Element | null {
   return doc.querySelector(SIDEBAR_SELECTOR)
 }
 
-/** 是需要识别的内容元素：嵌套在另一个内容元素里的不算 */
+/**
+ * 是需要识别的内容元素：嵌套在另一个内容元素里的不算。
+ * 用户主页的动态流里还有圆桌活动卡片（class 只有 ContentItem，没有 data-zop，
+ * 标题链接是 a.RoundTableLink）：它是活动记录不是内容，没有内容 id，跳过。
+ */
 export function isContentElement(el: Element): boolean {
   if (!el.matches(CONTENT_SELECTOR)) return false
-  return !el.parentElement?.closest('.ContentItem, .HotItem, .QuestionHeader')
+  if (el.parentElement?.closest('.ContentItem, .HotItem, .QuestionHeader')) return false
+  return !(
+    el.matches('.ContentItem:not([data-zop])') && el.querySelector(':scope > .ContentItem-title a.RoundTableLink')
+  )
 }
 
 /** 被过滤时隐藏的元素：信息流卡片、列表项；找不到时就是元素本身 */
