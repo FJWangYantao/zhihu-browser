@@ -5,7 +5,14 @@ import type { Dispose } from '@zhihu-browser/sdk'
 import { listenKeys } from './keyboard'
 import type { PageUI } from './page-ui'
 import { openPalette, type PaletteItem } from './palette'
-import { openDiagnosePanel, openPluginPanel, openShortcutHelp, sourceName } from './panels'
+import {
+  openDiagnosePanel,
+  openPluginPanel,
+  openShortcutHelp,
+  openSnapshotPanel,
+  type SnapshotFile,
+  sourceName,
+} from './panels'
 
 /** 打开命令面板的默认快捷键：macOS 上是 ⌘K，其他系统是 Ctrl+K */
 export const DEFAULT_PALETTE_KEYS = 'mod+k'
@@ -21,6 +28,8 @@ export interface HostUIOptions {
   openSettings?: () => void
   /** 内置命令"页面结构诊断"：生成诊断信息；不提供时不显示这个命令 */
   diagnose?: () => string
+  /** 内置命令"采集页面样本"：生成脱敏的页面样本；不提供时不显示这个命令 */
+  snapshot?: () => SnapshotFile
 }
 
 export interface HostUI {
@@ -58,6 +67,21 @@ export function connectHostUI(options: HostUIOptions): HostUI {
       title: '页面结构诊断',
       keywords: ['诊断', '排查', '问题', '结构', 'debug'],
       run: () => openDiagnosePanel(ui, doc, diagnose()),
+    })
+  }
+  const snapshot = options.snapshot
+  if (snapshot) {
+    builtins.push({
+      id: 'zb.snapshot',
+      title: '采集页面样本',
+      keywords: ['样本', '采集', '脱敏', 'fixture', 'snapshot'],
+      run: () => {
+        try {
+          openSnapshotPanel(ui, doc, snapshot())
+        } catch (e) {
+          ui.toast(`采集失败：${e instanceof Error ? e.message : String(e)}`, { tone: 'error', duration: 8000 })
+        }
+      },
     })
   }
 

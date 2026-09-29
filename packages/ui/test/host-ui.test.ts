@@ -20,7 +20,13 @@ afterEach(() => {
 })
 
 async function setup(
-  options: { platform?: Platform; plugins?: PluginModule[]; paletteKeys?: string; diagnose?: () => string } = {},
+  options: {
+    platform?: Platform
+    plugins?: PluginModule[]
+    paletteKeys?: string
+    diagnose?: () => string
+    snapshot?: () => { text: string; fileName: string }
+  } = {},
 ) {
   const ui = createPageUI(document)
   const host = createHost({
@@ -47,6 +53,7 @@ async function setup(
     paletteKeys: options.paletteKeys,
     openSettings,
     diagnose: options.diagnose,
+    snapshot: options.snapshot,
   })
   for (const p of options.plugins ?? []) await host.load(p)
   cleanup = () => {
@@ -213,10 +220,57 @@ describe('命令面板', () => {
     expect(shadow()?.querySelectorAll('.toast')[1]?.textContent).toMatch(/请按 Ctrl\+C/)
   })
 
-  test('没有提供诊断时不显示这个命令', async () => {
+  test('内置命令：采集页面样本，可以复制和下载；采集失败时提示原因', async () => {
+    const { hostUI } = await setup({ snapshot: () => ({ text: '{"format":1}', fileName: 'sample-home.json' }) })
+    const writeText = vi.fn(async (_text: string) => {})
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    const createObjectURL = vi.fn(() => 'blob:sample')
+    const revokeObjectURL = vi.fn()
+    Object.assign(window.URL, { createObjectURL, revokeObjectURL })
+    hostUI.openPalette()
+    type('样本')
+    expect(titles()).toEqual(['采集页面样本'])
+    press({ key: 'Enter' }, paletteInput() as HTMLInputElement)
+    const sheet = shadow()?.querySelector('.sheet')
+    expect(sheet?.querySelector('h2')?.textContent).toBe('采集页面样本')
+    expect(sheet?.querySelector('textarea')?.value).toBe('{"format":1}')
+    sheet?.querySelector<HTMLButtonElement>('button.primary')?.click()
+    await flush()
+    expect(writeText).toHaveBeenCalledWith('{"format":1}')
+
+    const clicked: string[] = []
+    const click = HTMLAnchorElement.prototype.click
+    HTMLAnchorElement.prototype.click = function (this: HTMLAnchorElement) {
+      clicked.push(`${this.download} ${this.href}`)
+    }
+    try {
+      const buttons = [...(sheet?.querySelectorAll('button') ?? [])]
+      buttons.find(b => b.textContent === '下载')?.click()
+    } finally {
+      HTMLAnchorElement.prototype.click = click
+    }
+    expect(clicked).toEqual(['sample-home.json blob:sample'])
+    expect(createObjectURL).toHaveBeenCalledTimes(1)
+  })
+
+  test('采集页面样本失败（没通过脱敏检查）：不显示样本，提示原因', async () => {
+    const { hostUI } = await setup({
+      snapshot: () => {
+        throw new Error('样本没有通过脱敏检查：页面上的文字没有脱敏')
+      },
+    })
+    hostUI.openPalette()
+    type('样本')
+    press({ key: 'Enter' }, paletteInput() as HTMLInputElement)
+    expect(shadow()?.querySelector('.sheet')).toBeNull()
+    expect(shadow()?.querySelector('.toast')?.textContent).toMatch(/采集失败：样本没有通过脱敏检查/)
+  })
+
+  test('没有提供诊断和样本采集时不显示这两个命令', async () => {
     const { hostUI } = await setup()
     hostUI.openPalette()
     expect(titles()).not.toContain('页面结构诊断')
+    expect(titles()).not.toContain('采集页面样本')
   })
 
   test('filterItems：每个词都要匹配；标题开头匹配的排前面', () => {

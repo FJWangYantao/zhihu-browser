@@ -79,6 +79,11 @@ export class ContentStore {
     return this.comments.size > 0
   }
 
+  /** 仓库里所有内容和评论的键：内容是 'answer:123'，评论是 'comment:456'（页面样本用） */
+  keys(): string[] {
+    return [...this.contents.keys(), ...[...this.comments.keys()].map(id => `comment:${id}`)]
+  }
+
   /**
    * 记下"为了不让整页变空而保留"的条目（键是内容的键或 'comment:评论 id'）。
    * 它们会被知乎渲染出来，由适配层在页面上折叠。

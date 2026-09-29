@@ -10,4 +10,11 @@ export {
   type PageUIOptions,
 } from './page-ui'
 export { filterItems, openPalette, type PaletteItem, type PaletteOptions } from './palette'
-export { openDiagnosePanel, openPluginPanel, openShortcutHelp, sourceName } from './panels'
+export {
+  openDiagnosePanel,
+  openPluginPanel,
+  openShortcutHelp,
+  openSnapshotPanel,
+  type SnapshotFile,
+  sourceName,
+} from './panels'

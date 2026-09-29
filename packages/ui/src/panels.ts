@@ -155,16 +155,9 @@ export function openPluginPanel(ui: PageUI, doc: Document, host: Host): Modal {
   return modal
 }
 
-/** 页面结构诊断：显示诊断信息，用户看过之后自己复制（扩展不会上传） */
-export function openDiagnosePanel(ui: PageUI, doc: Document, report: string): Modal {
-  const { modal, body } = sheet(ui, doc, '页面结构诊断')
-  const text = h(doc, 'textarea', {
-    class: 'report',
-    readonly: '',
-    rows: '14',
-    spellcheck: 'false',
-    'aria-label': '诊断信息',
-  })
+/** 报告文本框 + "复制"按钮：复制失败时选中全部内容，让用户手动复制 */
+function reportBox(ui: PageUI, doc: Document, report: string, label: string, rows: string) {
+  const text = h(doc, 'textarea', { class: 'report', readonly: '', rows, spellcheck: 'false', 'aria-label': label })
   text.value = report
   const copy = h(doc, 'button', { type: 'button', class: 'primary' }, '复制')
   copy.addEventListener('click', () => {
@@ -177,6 +170,13 @@ export function openDiagnosePanel(ui: PageUI, doc: Document, report: string): Mo
     if (!clipboard) return fallback()
     clipboard.writeText(report).then(() => ui.toast('已复制', { tone: 'success' }), fallback)
   })
+  return { text, copy }
+}
+
+/** 页面结构诊断：显示诊断信息，用户看过之后自己复制（扩展不会上传） */
+export function openDiagnosePanel(ui: PageUI, doc: Document, report: string): Modal {
+  const { modal, body } = sheet(ui, doc, '页面结构诊断')
+  const { text, copy } = reportBox(ui, doc, report, '诊断信息', '14')
   body.append(
     h(
       doc,
@@ -186,6 +186,39 @@ export function openDiagnosePanel(ui: PageUI, doc: Document, report: string): Mo
     ),
     text,
     h(doc, 'div', { class: 'buttons' }, copy),
+  )
+  return modal
+}
+
+export interface SnapshotFile {
+  /** 样本的文本 */
+  text: string
+  /** 下载时的文件名 */
+  fileName: string
+}
+
+/** 页面样本：显示脱敏之后的样本，用户看过之后自己复制或下载（扩展不会上传） */
+export function openSnapshotPanel(ui: PageUI, doc: Document, file: SnapshotFile): Modal {
+  const { modal, body } = sheet(ui, doc, '采集页面样本')
+  const { text, copy } = reportBox(ui, doc, file.text, '页面样本', '14')
+  const download = h(doc, 'button', { type: 'button' }, '下载')
+  download.addEventListener('click', () => {
+    const win = doc.defaultView
+    if (!win) return
+    const url = win.URL.createObjectURL(new win.Blob([file.text], { type: 'application/json' }))
+    const link = h(doc, 'a', { href: url, download: file.fileName })
+    link.click()
+    win.setTimeout(() => win.URL.revokeObjectURL(url), 1000)
+  })
+  body.append(
+    h(
+      doc,
+      'p',
+      { class: 'note' },
+      '页面样本用来在知乎改版后核对适配层。页面上所有的文字都已换成占位符，内容 id、用户标识换成了编号，链接只保留站内路径的形状，不含图片、样式和账号信息；页面的标签名、类名和元素的位置大小保留。请先看一遍再分享，扩展不会上传。',
+    ),
+    text,
+    h(doc, 'div', { class: 'buttons' }, copy, download),
   )
   return modal
 }

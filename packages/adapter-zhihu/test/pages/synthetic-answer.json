@@ -1,0 +1,63 @@
+{
+  "format": 1,
+  "url": "https://www.zhihu.com/question/100001/answer/100002",
+  "viewport": {
+    "width": 1024,
+    "height": 768
+  },
+  "root": {},
+  "body": {
+    "data-rect": "0,0,1024,1200"
+  },
+  "html": [
+    "<div id=\"root\" data-rect=\"0,0,0,0\">",
+    "<header class=\"AppHeader\" data-rect=\"0,0,0,0\">",
+    "<a href=\"https://www.zhihu.com/\">知乎</a>",
+    "<a href=\"https://www.zhihu.com/hot\">热榜</a>",
+    "</header>",
+    "<div class=\"QuestionHeader\" data-rect=\"0,60,1024,200\">",
+    "<div class=\"QuestionHeader-content\">",
+    "<div class=\"QuestionHeader-main\">",
+    "<h1 class=\"QuestionHeader-title\">文文文文文文文文文文文</h1>",
+    "<div class=\"QuestionHeader-detail\">文文文文</div>",
+    "</div>",
+    "<div class=\"QuestionHeader-side\">",
+    "</div>",
+    "</div>",
+    "</div>",
+    "<meta itemprop=\"url\" content=\"https://www.zhihu.com/question/100001\" data-rect=\"0,0,0,0\">",
+    "<main class=\"Question-main\" data-rect=\"100,280,900,900\">",
+    "<div class=\"Question-mainColumn\" data-rect=\"100,280,640,900\">",
+    "<div class=\"List-item\" data-rect=\"0,0,0,0\">",
+    "<div class=\"ContentItem AnswerItem\" data-zop=\"{&quot;authorName&quot;:&quot;用户1&quot;,&quot;itemId&quot;:100002,&quot;title&quot;:&quot;文文文文文文文文文文文&quot;,&quot;type&quot;:&quot;answer&quot;}\" itemprop=\"answer\" itemscope data-rect=\"100,280,640,700\">\n  <h2 class=\"ContentItem-title\">",
+    "<a href=\"https://www.zhihu.com/question/100001/answer/100002\">文文文文文文文文文文文</a>",
+    "</h2>\n  <div itemprop=\"author\" itemscope>",
+    "<meta itemprop=\"name\" content=\"文\">",
+    "<meta itemprop=\"url\" content=\"https://www.zhihu.com/people/user-1\">",
+    "</div>\n  <meta itemprop=\"url\" content=\"https://www.zhihu.com/question/100001/answer/100002\">\n  <meta itemprop=\"dateCreated\" content=\"2023-11-14T00:00:00.000Z\">\n  <meta itemprop=\"upvoteCount\" content=\"12\">\n  <div class=\"RichContent is-collapsed\">",
+    "<div class=\"RichContent-inner\">文文文文</div>",
+    "<button class=\"ContentItem-more\">阅读全文</button>",
+    "</div>\n  <div class=\"ContentItem-actions\">",
+    "<button class=\"Button VoteButton\">赞同</button>",
+    "<button class=\"ContentItem-rightButton\">收起</button>",
+    "</div>\n</div>",
+    "</div>",
+    "<a class=\"QuestionMainAction\" href=\"https://www.zhihu.com/question/100001\" data-rect=\"0,0,0,0\">查看全部 00 个回答</a>",
+    "</div>",
+    "<div class=\"Question-sideColumn\" data-rect=\"760,280,240,500\">",
+    "<div class=\"Card\">文文文</div>",
+    "</div>",
+    "</main>",
+    "</div>"
+  ],
+  "entities": [
+    "answer:100002",
+    "question:100001"
+  ],
+  "expect": {
+    "contents": 2,
+    "comments": 0,
+    "columns": true
+  },
+  "note": "合成样本：按 docs/spike-report.md 记录的知乎页面结构手工搭建，不是真实页面（见 test/synthetic.ts）"
+}

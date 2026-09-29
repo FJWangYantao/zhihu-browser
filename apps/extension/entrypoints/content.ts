@@ -1,6 +1,6 @@
 import '@zhihu-browser/adapter-zhihu/styles.css'
 import '@zhihu-browser/adapter-zhihu/theme.css'
-import { createAdapter, findSidebar, syncingStyles } from '@zhihu-browser/adapter-zhihu'
+import { createAdapter, findSidebar, pageInfo, snapshotFileName, syncingStyles } from '@zhihu-browser/adapter-zhihu'
 import { createHost } from '@zhihu-browser/core'
 import { connectHostUI, createPageUI, DEFAULT_PALETTE_KEYS } from '@zhihu-browser/ui'
 import { browser } from 'wxt/browser'
@@ -61,6 +61,10 @@ export default defineContentScript({
       // 内容脚本不能直接打开设置页，请后台打开
       openSettings: () => void browser.runtime.sendMessage({ type: 'open-options' }).catch(() => {}),
       diagnose: () => adapter.describe(browser.runtime.getManifest().version),
+      snapshot: () => ({
+        text: adapter.snapshot(browser.runtime.getManifest().version),
+        fileName: snapshotFileName(pageInfo(location.href).type),
+      }),
     })
     for (const plugin of officialPlugins) {
       try {
