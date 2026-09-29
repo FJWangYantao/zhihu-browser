@@ -24,6 +24,7 @@ import { classify, type Filters, processResponse } from './endpoints'
 import { checkAnchors, type FeatureId, type HealthReport, type HealthStage, type HealthSummary } from './health'
 import { keyOf } from './refs'
 import { isSubject, pageInfo } from './routes'
+import { auditSnapshot, snapshotPage, stringifySnapshot } from './snapshot'
 import { ContentStore } from './store'
 import { createThemeSync, type ThemeSync } from './theme'
 import { withoutHash } from './util'
@@ -48,6 +49,8 @@ export interface Adapter {
   readonly theme: ThemeSync
   /** 页面结构诊断（纯文本，只有标签名、类名和尺寸），version 是扩展的版本 */
   describe(version?: string): string
+  /** 采集当前页面的脱敏样本（JSON 文本，见 snapshot.ts），version 是扩展的版本 */
+  snapshot(version?: string): string
   /** 锚点健康检查的结果：两个时机的检查合在一起（见 health.ts） */
   health(): HealthSummary
   /** 插件已经加载：开始处理接口响应和页面元素 */
@@ -621,6 +624,14 @@ export function createAdapter(options: AdapterOptions = {}): Adapter {
     theme,
 
     describe: describeReport,
+
+    snapshot(version) {
+      const snapshot = snapshotPage(doc, { page, version, entities: store.keys() })
+      // 最后一道关：样本没有真的脱敏（脱敏代码有漏洞）时不输出
+      const problems = auditSnapshot(doc, snapshot)
+      if (problems.length) throw new Error(`样本没有通过脱敏检查：${problems.join('；')}`)
+      return stringifySnapshot(snapshot)
+    },
 
     health: healthSummary,
 

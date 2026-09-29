@@ -1,0 +1,56 @@
+{
+  "format": 1,
+  "url": "https://zhuanlan.zhihu.com/p/100001",
+  "viewport": {
+    "width": 1024,
+    "height": 768
+  },
+  "root": {},
+  "body": {
+    "data-rect": "0,0,1024,1600"
+  },
+  "html": [
+    "<div id=\"root\" data-rect=\"0,0,0,0\">",
+    "<header class=\"AppHeader\" data-rect=\"0,0,0,0\">",
+    "<a href=\"https://www.zhihu.com/\">知乎</a>",
+    "<a href=\"https://www.zhihu.com/hot\">热榜</a>",
+    "</header>",
+    "<main class=\"App-main\" data-rect=\"0,0,0,0\">",
+    "<article class=\"Post-content\" data-zop=\"{&quot;authorName&quot;:&quot;用户1&quot;,&quot;itemId&quot;:100001,&quot;title&quot;:&quot;文文文文文文&quot;,&quot;type&quot;:&quot;article&quot;}\" data-rect=\"200,60,640,1500\">",
+    "<header class=\"Post-Header\" data-rect=\"0,0,0,0\">",
+    "<h1 class=\"Post-Title\">文文文文文文</h1>",
+    "<div class=\"AuthorInfo\">",
+    "<a href=\"https://www.zhihu.com/people/user-1\">文</a>",
+    "</div>",
+    "</header>",
+    "<div class=\"Post-RichTextContainer\" data-rect=\"0,0,0,0\">",
+    "<div class=\"RichText ztext\">",
+    "<p>文文文文文文文</p>",
+    "<p>文文文文文文文</p>",
+    "</div>",
+    "</div>",
+    "<div class=\"Comments-container\" data-rect=\"0,0,0,0\">",
+    "<div class=\"css-comment\" data-id=\"100002\" data-rect=\"200,900,640,80\">",
+    "<a href=\"https://www.zhihu.com/people/user-2\">文</a>",
+    "<div class=\"RichText\">文文文文文</div>",
+    "</div>",
+    "<div class=\"css-comment\" data-id=\"100003\" data-rect=\"200,1000,640,80\">",
+    "<a href=\"https://www.zhihu.com/people/user-3\">文</a>",
+    "<div class=\"RichText\">文文文文文</div>",
+    "</div>",
+    "</div>",
+    "</article>",
+    "</main>",
+    "</div>"
+  ],
+  "entities": [
+    "article:100001",
+    "comment:100002",
+    "comment:100003"
+  ],
+  "expect": {
+    "contents": 1,
+    "comments": 2
+  },
+  "note": "合成样本：按 docs/spike-report.md 记录的知乎页面结构手工搭建，不是真实页面（见 test/synthetic.ts）"
+}

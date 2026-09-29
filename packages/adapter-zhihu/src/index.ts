@@ -23,5 +23,18 @@ export { type Adapter, type AdapterOptions, createAdapter } from './isolated'
 export { toAuthor, toComment, toContent, toFeedItem, toSearchResult } from './normalize'
 export { keyOf, parseContentUrl, type Ref } from './refs'
 export { isSubject, pageInfo } from './routes'
+export {
+  auditSnapshot,
+  type PageSnapshot,
+  Scrubber,
+  SNAPSHOT_FORMAT,
+  type SnapshotExpect,
+  type SnapshotOptions,
+  scrubText,
+  shape,
+  snapshotFileName,
+  snapshotPage,
+  stringifySnapshot,
+} from './snapshot'
 export { ContentStore } from './store'
 export { createThemeSync, syncingStyles, THEME_TOKENS, type ThemeSync, type ThemeToken } from './theme'

@@ -260,6 +260,7 @@ await check('命令面板：Ctrl+K 打开，列出插件命令和内置命令；
     '插件状态与日志',
     '打开设置页',
     '页面结构诊断',
+    '采集页面样本',
   ])
   // 命令和快捷键的标题相同：命令旁边显示快捷键
   assert.equal(await palette.locator('[role="option"]').first().locator('kbd').textContent(), 'J')
@@ -497,6 +498,37 @@ await check('命令面板：页面结构诊断，只有标签名、类名和尺�
   assert.match(text, /· div\.css-1qyytj7(\[data-zb-side\])? {2}\d+×\d+ block/)
   for (const secret of ['普通问题', '用户1', 'user-1', 'answer:1', 'zhihu.com'])
     assert.ok(!text.includes(secret), secret)
+  await home.keyboard.press('Escape')
+})
+
+await check('命令面板：采集页面样本，脱敏、保留结构和位置，通过脱敏检查', async () => {
+  await runCommand('采集页面样本')
+  const report = home.locator('#zb-root .sheet textarea')
+  await report.waitFor({ timeout: 5000 }).catch(async e => {
+    throw new Error(`${e.message.split('\n')[0]}；提示：${await home.locator('#zb-root .toast').allTextContents()}`)
+  })
+  const text = await report.inputValue()
+  const sample = JSON.parse(text)
+  assert.equal(sample.format, 1)
+  assert.equal(sample.url, 'https://www.zhihu.com/')
+  const html = sample.html.join('')
+  // 结构保留：类名、按钮文字、位置
+  assert.match(html, /class="Topstory-mainColumn"/)
+  assert.match(html, /class="css-1qyytj7"/)
+  assert.match(html, /data-rect="\d+,\d+,\d+,\d+"/)
+  assert.ok(sample.expect.contents > 0, '没有采到内容元素')
+  // 真实的 Chromium 里按位置找得到右侧栏
+  assert.equal(sample.expect.columns, true)
+  // 文字、作者、标识、我们自己的界面都不在样本里
+  for (const secret of ['普通问题', '营销号', '回答正文', 'a1hash', 'data-zb', 'zb-root', '<script', '<style'])
+    assert.ok(!text.includes(secret), secret)
+  // 作者名、内容 id 换成了编号（作者从 用户1 起，id 从 100001 起，和模拟页面上原来的名字和 id 都不同）
+  assert.match(html, /authorName&quot;:&quot;用户\d+&quot;/)
+  assert.match(html, /itemId&quot;:1\d{5}/)
+  assert.deepEqual(
+    sample.entities.filter(k => !/^[a-z]+:\d{6}$/.test(k)),
+    [],
+  )
   await home.keyboard.press('Escape')
 })
 

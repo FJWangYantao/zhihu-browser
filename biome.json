@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!spike"]
+    "includes": ["**", "!spike", "!**/test/pages"]
   },
   "formatter": {
     "indentStyle": "space",
