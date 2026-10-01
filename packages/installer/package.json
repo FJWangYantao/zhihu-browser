@@ -1,0 +1,29 @@
+{
+  "name": "@zhihu-browser/installer",
+  "version": "0.0.0",
+  "private": true,
+  "description": "zhihu-browser 用户插件的安装器：转译 TS / ESM，不执行代码就解析 meta，比较权限变化",
+  "license": "MIT",
+  "type": "module",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@zhihu-browser/core": "workspace:*",
+    "@zhihu-browser/sdk": "workspace:*",
+    "acorn": "^8.15.0",
+    "sucrase": "^3.35.0"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}
