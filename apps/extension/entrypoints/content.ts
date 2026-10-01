@@ -22,6 +22,8 @@ import {
   toPluginStates,
   watch,
 } from '../src/storage'
+import { connectUserPlugins, USER_PLUGINS_WAIT_MS } from '../src/user-plugins/content'
+import { FETCH_MESSAGE, type FetchReply, type Reply } from '../src/user-plugins/fetch-proxy'
 
 // 扩展隔离环境（ISOLATED world）：插件宿主、知乎适配层、核心界面和官方插件从这里启动。
 export default defineContentScript({
@@ -43,8 +45,14 @@ export default defineContentScript({
       services: {
         settings: createSettingsBackend(api),
         storage: createStorageBackend(api),
-        fetch: async () => {
-          throw new Error('z.fetch 还没有实现（计划在 M2 提供）')
+        // 网络请求交给后台代理：它按插件安装时确认过的权限放行
+        fetch: async (pluginId, url, init) => {
+          const reply = (await browser.runtime.sendMessage({ type: FETCH_MESSAGE, pluginId, url, init })) as
+            | Reply<FetchReply>
+            | undefined
+          if (!reply?.ok) throw new Error(reply?.error ?? '后台没有响应')
+          const { status, ok, headers, text } = reply.value
+          return { status, ok, headers, text: async () => text, json: async <T>() => JSON.parse(text) as T }
         },
         ui,
         // 插件的样式有增减之后，适配层重新检查主题 token
@@ -73,6 +81,10 @@ export default defineContentScript({
         console.error(`[zhihu-browser] 加载插件 ${plugin.meta.id} 失败`, e)
       }
     }
+    // 用户插件在用户脚本环境里运行，启动稍慢一点：最多等一小会儿，让第一批数据也能被它们过滤；
+    // 没等到就先开始处理页面，插件上线后会对页面上已有的内容重新过滤
+    const userPlugins = connectUserPlugins({ host, api, doc: document })
+    await Promise.race([userPlugins.ready, new Promise(resolve => setTimeout(resolve, USER_PLUGINS_WAIT_MS))])
     adapter.start(host)
 
     // 把登记的快捷键写给设置页（设置页据此列出可以改的快捷键）

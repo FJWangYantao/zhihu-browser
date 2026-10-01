@@ -26,6 +26,9 @@ importers:
       '@zhihu-browser/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@zhihu-browser/installer':
+        specifier: workspace:*
+        version: link:../../packages/installer
       '@zhihu-browser/plugin-filter':
         specifier: workspace:*
         version: link:../../plugins/filter
@@ -38,6 +41,9 @@ importers:
       '@zhihu-browser/plugin-theme':
         specifier: workspace:*
         version: link:../../plugins/theme
+      '@zhihu-browser/remote':
+        specifier: workspace:*
+        version: link:../../packages/remote
       '@zhihu-browser/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
