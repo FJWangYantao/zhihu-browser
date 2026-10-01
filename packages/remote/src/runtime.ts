@@ -27,8 +27,11 @@ import { Endpoint, type Transport } from './wire'
 export interface RuntimeOptions {
   transport: Transport
   elements: ElementReceiver
-  /** 插件文件的导出（转译后的 `exports`） */
-  module: { default?: unknown }
+  /**
+   * 加载插件文件，返回它的导出（转译后的 `exports`）。每次 start 时调用一次：
+   * 插件文件顶层的代码在这时才开始执行，所以没有启用的插件、安全模式下的插件什么也不会运行。
+   */
+  load: () => { default?: unknown }
 }
 
 export interface Runtime {
@@ -347,7 +350,7 @@ export function startRuntime(options: RuntimeOptions): Runtime {
       settingsListeners: new Set(),
     }
     session = s
-    const entry = options.module.default
+    const entry = options.load().default
     if (typeof entry !== 'function') throw new Error('插件文件必须默认导出一个函数')
     const result: unknown = await (entry as (z: PluginAPI) => unknown)(createApi(s))
     if (typeof result !== 'function') return

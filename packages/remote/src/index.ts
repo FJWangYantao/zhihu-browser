@@ -6,4 +6,5 @@ export { domElementReceiver, domElementSharer, domTransport, memoryElements } fr
 export type * from './protocol'
 export { NO_RUNTIME_MESSAGE, type RemotePluginOptions, remotePlugin } from './proxy'
 export { type Runtime, type RuntimeOptions, startRuntime } from './runtime'
+export { boot } from './runtime-entry'
 export { Endpoint, memoryTransports, RemoteError, type Transport } from './wire'

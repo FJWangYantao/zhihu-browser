@@ -166,7 +166,7 @@ export async function setupRemote(options: RemoteSetup) {
     : memoryElements()
   const runtime = options.noRuntime
     ? undefined
-    : startRuntime({ transport: runtimeSide, elements: elements.receiver, module: { default: options.entry } })
+    : startRuntime({ transport: runtimeSide, elements: elements.receiver, load: () => ({ default: options.entry }) })
   const module = remotePlugin({ meta, transport: hostSide, elements: elements.sharer, startTimeoutMs: 50 })
   const info = await host.load(module)
   return { host, info, runtime, settings, storage, logs, styles, toasts, fetches, globalMounts, contents, meta }
