@@ -344,6 +344,62 @@ await check('设置页：粘贴安装（先确认）、卡片里改设置、停�
   assert.deepEqual(Object.keys((await storage.get('userPlugins')).userPlugins ?? {}), [])
 })
 
+// M2 验收：任意一个官方插件以用户插件方式安装后，行为与内置时一致。
+// 官方插件的源码本身就是合法的单文件插件：改个 id 直接安装，和内置的版本对比页面上的结果。
+await check('官方插件（屏蔽、信息增强）以用户插件方式安装后，页面上的行为与内置时一致', async () => {
+  const pluginsDir = path.resolve(here, '../../../plugins')
+  const sourceOf = (name, copy) =>
+    fs.readFileSync(path.join(pluginsDir, name, 'src/index.ts'), 'utf8').replace(`id: '${name}',`, `id: '${copy}',`)
+  const snapshot = page =>
+    page.evaluate(() =>
+      [...document.querySelectorAll('[data-zb-id]')].map(el => ({
+        id: el.getAttribute('data-zb-id'),
+        state: el.closest('[data-zb-hidden]') ? 'hidden' : (el.getAttribute('data-zb-fold') ?? 'shown'),
+        badges: [...el.querySelectorAll('.zb-badge')].map(b => b.textContent),
+        actions: [...el.querySelectorAll('.zb-action')].map(b => b.textContent),
+      })),
+    )
+  /** 打开首页，等官方（或用户）插件的标签和按钮都出现 */
+  const stable = async () => {
+    const page = await open(HOME)
+    await waitFor(page, () => window.__app?.pages === 1 && document.querySelectorAll('[data-zb-id]').length >= 6)
+    await until(async () => {
+      const cards = await snapshot(page)
+      return (
+        cards.length >= 6 && cards.every(c => c.badges.length >= 1 && (c.actions.length >= 1 || c.state !== 'shown'))
+      )
+    }, 12_000).catch(async e => {
+      console.log(JSON.stringify(await snapshot(page)))
+      throw e
+    })
+    const cards = await snapshot(page)
+    await page.close()
+    return cards
+  }
+
+  const rules = { keywords: ['营销'], mode: 'fold' }
+  await storage.set({ 'settings:filter': rules, 'settings:filter-copy': rules })
+  const builtin = await stable()
+  assert.ok(
+    builtin.some(c => c.state.startsWith('关键词')),
+    '内置的屏蔽应当折叠了带"营销"的卡片',
+  )
+  assert.ok(
+    builtin.every(c => c.badges.some(b => /字$/.test(b))),
+    '内置的信息增强应当显示字数',
+  )
+
+  await storage.set({ plugins: { filter: { enabled: false }, info: { enabled: false } } })
+  await install(sourceOf('filter', 'filter-copy'))
+  await install(sourceOf('info', 'info-copy'))
+  const copied = await stable()
+  assert.deepEqual(copied, builtin)
+
+  await manage({ op: 'uninstall', id: 'filter-copy' })
+  await manage({ op: 'uninstall', id: 'info-copy' })
+  await storage.set({ plugins: { filter: { enabled: true }, info: { enabled: true } } })
+})
+
 await check('页面上没有报错', async () => {
   assert.deepEqual(problems, [])
 })
