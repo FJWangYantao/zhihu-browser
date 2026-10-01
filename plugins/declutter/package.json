@@ -1,0 +1,29 @@
+{
+  "name": "@zhihu-browser/plugin-declutter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "zhihu-browser 官方插件：去干扰。隐藏横幅广告、推广卡片、创作者中心入口等",
+  "license": "MIT",
+  "type": "module",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@zhihu-browser/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@zhihu-browser/core": "workspace:*",
+    "happy-dom": "^20.14.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@zhihu-browser/plugin-reader",
+  "version": "0.1.0",
+  "private": true,
+  "description": "zhihu-browser 官方插件：阅读模式。回答和文章的专注阅读视图",
+  "license": "MIT",
+  "type": "module",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@zhihu-browser/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@zhihu-browser/core": "workspace:*",
+    "happy-dom": "^20.14.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}

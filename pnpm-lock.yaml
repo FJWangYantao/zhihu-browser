@@ -29,12 +29,21 @@ importers:
       '@zhihu-browser/installer':
         specifier: workspace:*
         version: link:../../packages/installer
+      '@zhihu-browser/plugin-declutter':
+        specifier: workspace:*
+        version: link:../../plugins/declutter
       '@zhihu-browser/plugin-filter':
         specifier: workspace:*
         version: link:../../plugins/filter
+      '@zhihu-browser/plugin-hd-images':
+        specifier: workspace:*
+        version: link:../../plugins/hd-images
       '@zhihu-browser/plugin-info':
         specifier: workspace:*
         version: link:../../plugins/info
+      '@zhihu-browser/plugin-reader':
+        specifier: workspace:*
+        version: link:../../plugins/reader
       '@zhihu-browser/plugin-shortcuts':
         specifier: workspace:*
         version: link:../../plugins/shortcuts
@@ -171,6 +180,28 @@ importers:
         specifier: ^5.0.2
         version: 5.0.2(@types/node@26.6.3)(happy-dom@20.14.5)(vite@8.3.1(@types/node@26.6.3)(jiti@2.7.0))
 
+  plugins/declutter:
+    dependencies:
+      '@zhihu-browser/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.4
+      '@zhihu-browser/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      happy-dom:
+        specifier: ^20.14.5
+        version: 20.14.5
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.2
+        version: 5.0.2(@types/node@22.20.4)(happy-dom@20.14.5)(vite@8.3.1(@types/node@22.20.4)(jiti@2.7.0))
+
   plugins/filter:
     dependencies:
       '@zhihu-browser/sdk':
@@ -187,6 +218,25 @@ importers:
         specifier: ^5.0.2
         version: 5.0.2(@types/node@26.6.3)(happy-dom@20.14.5)(vite@8.3.1(@types/node@26.6.3)(jiti@2.7.0))
 
+  plugins/hd-images:
+    dependencies:
+      '@zhihu-browser/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+    devDependencies:
+      '@zhihu-browser/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      happy-dom:
+        specifier: ^20.14.5
+        version: 20.14.5
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.2
+        version: 5.0.2(@types/node@26.6.3)(happy-dom@20.14.5)(vite@8.3.1(@types/node@26.6.3)(jiti@2.7.0))
+
   plugins/info:
     dependencies:
       '@zhihu-browser/sdk':
@@ -196,6 +246,25 @@ importers:
       '@zhihu-browser/core':
         specifier: workspace:*
         version: link:../../packages/core
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.2
+        version: 5.0.2(@types/node@26.6.3)(happy-dom@20.14.5)(vite@8.3.1(@types/node@26.6.3)(jiti@2.7.0))
+
+  plugins/reader:
+    dependencies:
+      '@zhihu-browser/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+    devDependencies:
+      '@zhihu-browser/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      happy-dom:
+        specifier: ^20.14.5
+        version: 20.14.5
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

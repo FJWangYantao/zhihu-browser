@@ -122,6 +122,8 @@ const SHORTCUTS = [
   ['shift+c', '收起全部内容'],
   ['g g', '回到顶部'],
 ]
+/** 阅读模式插件的快捷键（命令和快捷键同名，在命令面板里合成一行） */
+const READER = ['r', '打开 / 关闭阅读模式']
 
 // ---------- 首页 ----------
 
@@ -257,6 +259,7 @@ await check('命令面板：Ctrl+K 打开，列出插件命令和内置命令；
   const titles = await palette.locator('[role="option"] .title').allTextContents()
   assert.deepEqual(titles, [
     ...SHORTCUTS.map(([, title]) => title),
+    // 阅读模式的命令只在回答、问题、文章页可用，首页上没有
     '查看快捷键',
     '插件状态与日志',
     '打开设置页',
@@ -271,7 +274,7 @@ await check('命令面板：Ctrl+K 打开，列出插件命令和内置命令；
   const sheet = home.locator('#zb-root .sheet')
   await sheet.waitFor({ timeout: 5000 })
   assert.match(await sheet.textContent(), /打开命令面板.*下一条内容/)
-  assert.deepEqual(await sheet.locator('kbd').allTextContents(), ['Ctrl+K', 'J', 'K', 'O', 'C', 'Shift+C', 'G G'])
+  assert.deepEqual(await sheet.locator('kbd').allTextContents(), ['Ctrl+K', 'J', 'K', 'O', 'C', 'Shift+C', 'G G', 'R'])
   await home.keyboard.press('Escape')
 })
 
@@ -287,7 +290,7 @@ await check('在设置页改命令面板的快捷键，知乎页面立即生效'
   const registry = (await storage.get('registry')).registry
   assert.deepEqual(
     registry.shortcuts.map(s => s.id),
-    ['@host:mod+k', ...SHORTCUTS.map(([keys]) => `shortcuts:${keys}`)],
+    ['@host:mod+k', ...SHORTCUTS.map(([keys]) => `shortcuts:${keys}`), `reader:${READER[0]}`],
   )
   assert.equal(await options.locator('[id="shortcut-shortcuts:g g"]').inputValue(), 'g g')
   await options.locator('#palette-keys').fill('alt+p')
@@ -314,7 +317,7 @@ await check('数据包：导出当前设置；导入前先预览，导入后知�
   assert.deepEqual(exported.settings, { mode: 'remove', keywords: ['营销'] })
 
   const pack = { zbPack: 1, plugin: 'filter', name: '示例屏蔽列表', settings: { authors: ['用户3 @user-3'] } }
-  await options.locator('input[type="file"]').setInputFiles({
+  await options.locator('input[type="file"][accept*="json"]').setInputFiles({
     name: 'pack.json',
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(pack)),
@@ -331,11 +334,23 @@ await check('数据包：导出当前设置；导入前先预览，导入后知�
 
 // ---------- 信息增强、主题、键盘浏览 ----------
 
-await check('设置页：列出四个官方插件，设置项按插件的定义生成', async () => {
+await check('设置页：列出官方插件，设置项按插件的定义生成', async () => {
   const titles = await options
     .locator('section.card h2')
     .evaluateAll(els => els.map(el => el.firstChild.textContent.trim()))
-  assert.deepEqual(titles, ['屏蔽', '主题', '信息增强', '键盘浏览', '快捷键', '数据包', '安全模式'])
+  assert.deepEqual(titles, [
+    '屏蔽',
+    '主题',
+    '信息增强',
+    '键盘浏览',
+    '阅读模式',
+    '高清原图',
+    '去干扰',
+    '安装用户插件',
+    '快捷键',
+    '数据包',
+    '安全模式',
+  ])
   assert.deepEqual(await options.locator('#theme-colorScheme option').allTextContents(), [
     '跟随知乎',
     '浅色',
@@ -595,6 +610,71 @@ await check('键盘浏览：在设置页改键后立即生效', async () => {
   await waitAtTop(question, keys[1])
   await options.locator('.shortcut', { has: input }).getByRole('button', { name: '恢复默认', exact: true }).click()
   await until(async () => (await storage.get('keymap')).keymap?.['shortcuts:j'] === undefined)
+})
+
+// ---------- 阅读模式、高清原图、去干扰 ----------
+
+await check('阅读模式：按 r 打开全屏阅读视图（标题、作者、清理过的正文），Esc 关闭', async () => {
+  await question.bringToFront()
+  await question.evaluate(() => document.activeElement?.blur())
+  await waitFor(question, () => document.querySelectorAll('[data-zb-id]').length > 0)
+  await question.keyboard.press('r')
+  const view = question.locator('#zb-root .reader')
+  await view.waitFor({ timeout: 5000 })
+  assert.match(await view.locator('h1').textContent(), /问题九|普通问题|营销号/)
+  assert.match(await view.locator('.body').textContent(), /回答正文 \d+ 第 1 段/)
+  assert.equal(await view.locator('script').count(), 0)
+  // 覆盖整个页面
+  const box = await view.boundingBox()
+  assert.ok(box.width >= 1000 && box.height >= 600, JSON.stringify(box))
+  await question.keyboard.press('Escape')
+  await question.locator('#zb-root .reader').waitFor({ state: 'detached', timeout: 5000 })
+})
+
+await check('高清原图：正文图片换成原图，点击在页面上层查看大图', async () => {
+  await question.bringToFront()
+  await question.evaluate(() => {
+    const body = document.querySelector('.RichContent')
+    const img = document.createElement('img')
+    img.className = 'e2e-image'
+    img.setAttribute('src', 'https://pica.zhimg.com/v2-e2e_720w.jpg')
+    img.setAttribute('data-original', 'https://pica.zhimg.com/v2-e2e_r.jpg')
+    img.setAttribute('width', '200')
+    img.setAttribute('height', '100')
+    body.append(img)
+  })
+  await until(
+    async () =>
+      (await question.evaluate(() => document.querySelector('.e2e-image')?.getAttribute('src'))) ===
+      'https://pica.zhimg.com/v2-e2e_r.jpg',
+  )
+  await question.evaluate(() => document.querySelector('.e2e-image').click())
+  const viewer = question.locator('#zb-root .backdrop img')
+  await viewer.waitFor({ timeout: 5000 })
+  assert.equal(await viewer.getAttribute('src'), 'https://pica.zhimg.com/v2-e2e_r.jpg')
+  await question.keyboard.press('Escape')
+  await question.locator('#zb-root .backdrop').waitFor({ state: 'detached', timeout: 5000 })
+})
+
+await check('去干扰：横幅、推广卡片、创作者中心入口被隐藏，关掉某一项后恢复', async () => {
+  await question.bringToFront()
+  await question.evaluate(() => {
+    for (const html of [
+      '<div class="Pc-Business-Card-PcTopFeedBanner e2e-ad">横幅</div>',
+      '<div class="pc-article-answer e2e-ad">推广卡片</div>',
+      '<div class="Card CreatorEntrance e2e-ad">创作者中心</div>',
+    ]) {
+      document.body.insertAdjacentHTML('beforeend', html)
+    }
+  })
+  const displays = () =>
+    question.evaluate(() => [...document.querySelectorAll('.e2e-ad')].map(el => getComputedStyle(el).display))
+  assert.deepEqual(await displays(), ['none', 'none', 'none'])
+  await storage.set({ 'settings:declutter': { creator: false } })
+  await until(async () => (await displays()).join() === 'none,none,block')
+  await storage.set({ plugins: { declutter: { enabled: false } } })
+  await until(async () => (await displays()).join() === 'block,block,block')
+  await storage.set({ plugins: { declutter: { enabled: true } } })
 })
 
 await check('安全模式：刷新后不运行任何插件', async () => {
