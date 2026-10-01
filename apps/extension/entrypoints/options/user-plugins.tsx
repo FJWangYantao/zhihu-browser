@@ -231,7 +231,7 @@ export interface InstallPanelHandle {
 export function InstallPanel(props: {
   client: PluginClient
   /** 安装完成（含是否需要引导用户打开开关） */
-  onInstalled: (result: { name: string; action: string; scriptsAvailable: boolean }) => void
+  onInstalled: (result: { name: string; action: string; scriptsAvailable: boolean; needsRefresh?: boolean }) => void
   handle?: { current: InstallPanelHandle | null }
 }) {
   const { client } = props
@@ -294,7 +294,7 @@ export function InstallPanel(props: {
         setReview(undefined)
         return
       }
-      const { plan, scriptsAvailable } = reply.value
+      const { plan, scriptsAvailable, needsRefresh } = reply.value
       setReview(undefined)
       setSource('')
       setFileName(undefined)
@@ -303,6 +303,7 @@ export function InstallPanel(props: {
         name: plan.meta.name,
         action: ACTION_LABEL[plan.action],
         scriptsAvailable,
+        needsRefresh,
       })
       if (!granted && plan.hostPatterns.length) {
         setProblems(['没有授予访问外部网站的权限：插件里的 z.fetch 会失败。可以在已安装插件的卡片里重新授权。'])

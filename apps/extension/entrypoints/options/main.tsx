@@ -166,8 +166,8 @@ function App() {
       <InstallPanel
         client={client}
         handle={installer}
-        onInstalled={({ name, action, scriptsAvailable: available }) => {
-          saved(`已${action}「${name}」`)
+        onInstalled={({ name, action, scriptsAvailable: available, needsRefresh }) => {
+          saved(`已${action}「${name}」${needsRefresh ? '：已打开的知乎页面需要刷新才会用上新代码' : ''}`)
           setScriptsAvailable(available)
         }}
       />

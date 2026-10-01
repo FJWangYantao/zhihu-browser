@@ -78,6 +78,8 @@ export interface InstallResult {
   plan: InstallPlan
   /** 用户脚本能否使用；不能时插件已保存，但要开启"允许用户脚本"后才能运行 */
   scriptsAvailable: boolean
+  /** 浏览器不能把新代码执行到已打开的页面（没有 userScripts.execute）：要刷新知乎页面才会用上新代码 */
+  needsRefresh: boolean
 }
 
 export interface Manager {
@@ -192,7 +194,9 @@ export function createManager(deps: ManagerDeps): Manager {
         const api = await deps.userScripts()
         if (api && entry.enabled) await deploy(api, next, meta.id)
         await writeIndex(storage, next)
-        return { entry, plan, scriptsAvailable: api !== undefined }
+        const needsRefresh =
+          api !== undefined && entry.enabled && typeof api.execute !== 'function' && (await deps.zhihuTabs()).length > 0
+        return { entry, plan, scriptsAvailable: api !== undefined, needsRefresh }
       }),
 
     setEnabled: (id, enabled) =>
