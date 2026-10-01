@@ -1,0 +1,32 @@
+{
+  "name": "@zhihu-browser/remote",
+  "version": "0.0.0",
+  "private": true,
+  "description": "zhihu-browser 用户插件的跨环境运行：USER_SCRIPT 环境里的 SDK 运行时，和扩展隔离环境里把它接到宿主上的代理",
+  "license": "MIT",
+  "type": "module",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./runtime": {
+      "types": "./src/runtime-entry.ts",
+      "default": "./src/runtime-entry.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@zhihu-browser/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@zhihu-browser/core": "workspace:*",
+    "happy-dom": "^20.14.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}

@@ -32,9 +32,11 @@ export interface PluginMeta {
   settings?: Record<string, SettingSpec>
 }
 
-/** 插件入口：插件文件的默认导出。每个标签页执行一次，可以返回一个清理函数。 */
 // biome-ignore lint/suspicious/noConfusingVoidType: 回调可以不返回值，也可以返回清理函数；改成 undefined 会拒绝普通的 () => void 函数
-export type PluginEntry<M extends PluginMeta = PluginMeta> = (z: PluginAPI<M>) => void | Dispose
+type EntryResult = void | Dispose
+
+/** 插件入口：插件文件的默认导出。每个标签页执行一次，可以返回一个清理函数；也可以是 async 函数。 */
+export type PluginEntry<M extends PluginMeta = PluginMeta> = (z: PluginAPI<M>) => EntryResult | Promise<EntryResult>
 
 /** 一个插件文件的导出内容（宿主加载插件时使用）。 */
 export interface PluginModule<M extends PluginMeta = PluginMeta> {
