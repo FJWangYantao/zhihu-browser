@@ -76,7 +76,11 @@ export function connectUserPlugins(options: { host: Host; api: StorageApi; doc: 
     return chain
   }
 
-  const ready = api.local.get(USER_PLUGINS_KEY).then(stored => enqueue(toIndex(stored[USER_PLUGINS_KEY])))
+  // 读不到存储时也不能拖垮页面：用户插件不可用，官方插件照常运行
+  const ready = api.local
+    .get(USER_PLUGINS_KEY)
+    .then(stored => enqueue(toIndex(stored[USER_PLUGINS_KEY])))
+    .catch(e => console.error('[zhihu-browser] 读取用户插件失败', e))
   const stopWatching = watch(
     api,
     key => key === USER_PLUGINS_KEY,
