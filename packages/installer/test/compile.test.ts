@@ -130,12 +130,21 @@ export default function () {}
     expect(error.message).toContain('KB')
   })
 
-  test('export { meta } 这种写法给出明确提示', () => {
+  test('export { meta, handler as default }：meta 对应顶层的对象字面量时可以', () => {
+    const { meta } = compilePlugin(
+      `var meta = { id: 'a', name: 'a', version: '1.0.0', api: 1 }\nfunction handler(z) {}\nexport { handler as default, meta }`,
+      'bundled.js',
+    )
+    expect(meta.id).toBe('a')
+  })
+
+  test('export { meta } 指向的不是字面量时拒绝', () => {
     const error = catchError(() =>
       compilePlugin(
-        `const meta = { id: 'a', name: 'a', version: '1.0.0', api: 1 }\nexport { meta }\nexport default function () {}`,
+        `const base = {}\nconst meta = { ...base, id: 'a' }\nexport { meta }\nexport default function () {}`,
+        'bundled.js',
       ),
     )
-    expect(error.message).toContain('export const meta')
+    expect(error.message).toContain('展开')
   })
 })

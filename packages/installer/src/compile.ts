@@ -37,12 +37,32 @@ function parseProgram(code: string): Program {
   }
 }
 
-/** 找到 `export const meta = {…}`，返回对象字面量的值 */
+/** 找到 meta 的字面量（`export const meta = {…}`，或打包工具生成的 `export { meta }`），返回它的值 */
 function extractMeta(program: Program, original: string): unknown {
   let hasDefault = false
   let found: unknown
   let foundMeta = false
   const problems: string[] = []
+  /** 顶层 const / let / var 声明：变量名 → 初始值 */
+  const initializers = new Map<string, unknown>()
+  for (const node of program.body) {
+    if (node.type !== 'VariableDeclaration') continue
+    for (const d of node.declarations as { id: { type: string; name?: string }; init: unknown }[]) {
+      if (d.id.type === 'Identifier' && d.id.name) initializers.set(d.id.name, d.init)
+    }
+  }
+
+  const readMeta = (init: unknown) => {
+    foundMeta = true
+    try {
+      found = evaluateLiteral(init as never)
+    } catch (e) {
+      if (!(e instanceof LiteralError)) throw e
+      const line = e.position === undefined ? '' : `（第 ${lineOf(original, e.position)} 行附近）`
+      problems.push(`meta：${e.message}${line}`)
+    }
+  }
+
   for (const node of program.body) {
     if (node.type === 'ImportDeclaration') {
       problems.push(
@@ -51,27 +71,24 @@ function extractMeta(program: Program, original: string): unknown {
     }
     if (node.type === 'ExportAllDeclaration') problems.push('不支持 export * from')
     if (node.type === 'ExportDefaultDeclaration') hasDefault = true
-    if (node.type === 'ExportNamedDeclaration') {
-      const decl = node.declaration as (AcornNode & Record<string, unknown>) | null
-      if (node.source) problems.push('不支持 export … from')
-      if (decl?.type === 'VariableDeclaration') {
-        for (const d of decl.declarations as { id: { type: string; name?: string }; init: unknown }[]) {
-          if (d.id.type === 'Identifier' && d.id.name === 'meta') {
-            foundMeta = true
-            try {
-              found = evaluateLiteral(d.init as never)
-            } catch (e) {
-              if (e instanceof LiteralError) {
-                const line = e.position === undefined ? '' : `（第 ${lineOf(original, e.position)} 行附近）`
-                problems.push(`meta：${e.message}${line}`)
-              } else throw e
-            }
-          }
-        }
-      } else if (!decl && Array.isArray(node.specifiers)) {
-        for (const s of node.specifiers as { exported: { name?: string } }[]) {
-          if (s.exported.name === 'meta') problems.push('meta 必须写成 export const meta = { … }')
-        }
+    if (node.type !== 'ExportNamedDeclaration') continue
+    if (node.source) {
+      problems.push('不支持 export … from')
+      continue
+    }
+    const decl = node.declaration as (AcornNode & Record<string, unknown>) | null
+    if (decl?.type === 'VariableDeclaration') {
+      for (const d of decl.declarations as { id: { type: string; name?: string }; init: unknown }[]) {
+        if (d.id.type === 'Identifier' && d.id.name === 'meta') readMeta(d.init)
+      }
+    } else if (!decl && Array.isArray(node.specifiers)) {
+      // export { meta, handler as default }：打包工具常见的写法
+      for (const spec of node.specifiers as { local: { name?: string }; exported: { name?: string } }[]) {
+        if (spec.exported.name === 'default') hasDefault = true
+        if (spec.exported.name !== 'meta') continue
+        const local = spec.local.name
+        if (local && initializers.has(local)) readMeta(initializers.get(local))
+        else problems.push('meta 必须是 export const meta = { … }，或者对应一个顶层的对象字面量变量')
       }
     }
   }

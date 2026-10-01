@@ -1,7 +1,7 @@
 {
   "name": "@zhihu-browser/sdk",
-  "version": "0.0.0",
-  "description": "zhihu-browser 插件 API 的类型定义",
+  "version": "0.1.0",
+  "description": "zhihu-browser 插件 API 的类型定义：写知乎插件时用来获得代码补全和类型检查",
   "license": "MIT",
   "type": "module",
   "types": "./src/index.ts",
@@ -12,14 +12,38 @@
     }
   },
   "files": [
-    "src"
+    "dist",
+    "README.md"
   ],
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepack": "pnpm build"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
     "vitest": "^5.0.2"
+  },
+  "keywords": [
+    "zhihu",
+    "plugin",
+    "browser-extension",
+    "types"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FJWangYantao/zhihu-browser.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/FJWangYantao/zhihu-browser/blob/main/docs/plugin-api.md",
+  "publishConfig": {
+    "access": "public",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts"
+      }
+    }
   }
 }

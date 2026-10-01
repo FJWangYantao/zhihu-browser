@@ -23,6 +23,8 @@
     "sucrase": "^3.35.0"
   },
   "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.25.0",
     "typescript": "^7.0.2",
     "vitest": "^5.0.2"
   }
