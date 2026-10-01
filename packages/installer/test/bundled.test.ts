@@ -42,3 +42,16 @@ describe('打包工具生成的单文件插件', () => {
     expect(compiled.meta.settings).toHaveProperty('minWords')
   })
 })
+
+// docs/examples 里的示例（嵌进了给 AI 的指南）都必须是能安装的插件
+describe('文档里的示例插件', async () => {
+  const dir = resolve(import.meta.dirname, '../../../docs/examples')
+  const { readdirSync, readFileSync } = await import('node:fs')
+  for (const file of readdirSync(dir).filter(f => f.endsWith('.ts'))) {
+    test(`${file} 可以安装`, () => {
+      const { meta } = compilePlugin(readFileSync(resolve(dir, file), 'utf8'), file)
+      expect(meta.id).toMatch(/^[a-z0-9-]+$/)
+      expect(meta.api).toBe(1)
+    })
+  }
+})

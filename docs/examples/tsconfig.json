@@ -1,0 +1,7 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "paths": { "@zhihu-browser/sdk": ["../../packages/sdk/src/index.ts"] }
+  },
+  "include": ["*.ts"]
+}
