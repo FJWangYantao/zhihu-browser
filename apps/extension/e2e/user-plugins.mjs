@@ -157,7 +157,10 @@ await check('没有开启"允许用户脚本"：插件照样保存，知乎页�
   await settingsPage.reload()
   await settingsPage.locator('.guide').waitFor({ timeout: 8000 })
   assert.match(await settingsPage.locator('.guide').textContent(), /允许用户脚本/)
-  await settingsPage.locator('section.card', { has: settingsPage.locator('.user-footer') }).first().waitFor({ timeout: 8000 })
+  await settingsPage
+    .locator('section.card', { has: settingsPage.locator('.user-footer') })
+    .first()
+    .waitFor({ timeout: 8000 })
   const home = await open(HOME)
   await waitFor(home, () => window.__app?.pages === 1 && document.querySelectorAll('[data-zb-id]').length >= 6)
   await home.keyboard.press('Control+k')
