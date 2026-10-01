@@ -11,14 +11,22 @@ import { chromium } from 'playwright'
 import { startMockZhihu } from './mock-zhihu.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const extDir = path.resolve(here, '../.output/chrome-mv3')
+const builtDir = path.resolve(here, '../.output/chrome-mv3')
 const PORT = 18_091
 const HOME = 'http://www.zhihu.com/'
 
-if (!fs.existsSync(path.join(extDir, 'manifest.json'))) {
+if (!fs.existsSync(path.join(builtDir, 'manifest.json'))) {
   console.error('找不到构建好的扩展，请先运行 pnpm --filter @zhihu-browser/extension build')
   process.exit(1)
 }
+
+// 浏览器的主机权限要用户在弹窗里授予，自动化里点不了：测试用的副本把测试域名直接写进 host_permissions
+const extDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zb-ext-'))
+fs.cpSync(builtDir, extDir, { recursive: true })
+const manifestPath = path.join(extDir, 'manifest.json')
+const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+manifest.host_permissions.push('*://api.example.test/*')
+fs.writeFileSync(manifestPath, JSON.stringify(manifest))
 
 const server = await startMockZhihu(PORT)
 const userDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zb-e2e-user-'))
@@ -29,7 +37,7 @@ const context = await chromium.launchPersistentContext(userDir, {
   args: [
     `--disable-extensions-except=${extDir}`,
     `--load-extension=${extDir}`,
-    `--host-resolver-rules=MAP *.zhihu.com 127.0.0.1:${PORT}`,
+    `--host-resolver-rules=MAP *.zhihu.com 127.0.0.1:${PORT}, MAP api.example.test 127.0.0.1:${PORT}`,
   ],
 })
 const sw = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'))
@@ -342,6 +350,61 @@ await check('设置页：粘贴安装（先确认）、卡片里改设置、停�
   await card.getByRole('button', { name: '确认卸载' }).click()
   await settingsPage.locator('section.card .user-footer').waitFor({ state: 'detached', timeout: 8000 })
   assert.deepEqual(Object.keys((await storage.get('userPlugins')).userPlugins ?? {}), [])
+})
+
+await check('z.fetch：只能访问声明过的域名，不带 Cookie 和来源页面，没声明的被拒绝', async () => {
+  await install(`
+export const meta = {
+  id: 'fetch-plugin',
+  name: '网络插件',
+  version: '1.0.0',
+  api: 1,
+  permissions: ['net:api.example.test'],
+}
+export default function (z) {
+  const run = async (title, fn) => {
+    try {
+      z.ui.toast(title + ' ' + JSON.stringify(await fn()))
+    } catch (e) {
+      z.ui.toast(title + ' 失败：' + e.message)
+    }
+  }
+  z.registerCommand('allowed', {
+    title: '抓取：声明过的',
+    run: () => run('A', async () => (await z.fetch('http://api.example.test:${PORT}/data')).json()),
+  })
+  z.registerCommand('post', {
+    title: '抓取：POST',
+    run: () => run('P', async () => (await z.fetch('http://api.example.test:${PORT}/data', { method: 'POST', body: 'x=1' })).json()),
+  })
+  z.registerCommand('other', {
+    title: '抓取：没声明的',
+    run: () => run('B', () => z.fetch('http://other.example.test/data')),
+  })
+  z.registerCommand('zhihu', {
+    title: '抓取：知乎',
+    run: () => run('Z', () => z.fetch('https://www.zhihu.com/api/v4/me')),
+  })
+}
+`)
+  const page = await open(HOME)
+  await waitFor(page, () => window.__app?.pages === 1)
+  const runAndRead = async (title, pattern) => {
+    await page.keyboard.press('Control+k')
+    await page.locator('#zb-root .palette').waitFor({ timeout: 5000 })
+    await page.keyboard.type(title)
+    await page.keyboard.press('Enter')
+    const toast = page.locator('#zb-root .toast', { hasText: pattern })
+    await toast.first().waitFor({ timeout: 8000 })
+    return toast.first().textContent()
+  }
+  await until(async () => (await page.evaluate(() => document.querySelectorAll('[data-zb-id]').length)) > 0)
+  assert.match(await runAndRead('声明过的', /^A /), /"from":"external","method":"GET","cookie":null,"referer":null/)
+  assert.match(await runAndRead('POST', /^P /), /"method":"POST"/)
+  assert.match(await runAndRead('没声明的', /^B 失败/), /没有声明访问 other\.example\.test 的权限/)
+  assert.match(await runAndRead('抓取：知乎', /^Z 失败/), /不能访问知乎/)
+  await page.close()
+  await manage({ op: 'uninstall', id: 'fetch-plugin' })
 })
 
 // M2 验收：任意一个官方插件以用户插件方式安装后，行为与内置时一致。

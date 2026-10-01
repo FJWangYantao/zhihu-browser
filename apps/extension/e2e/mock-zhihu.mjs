@@ -151,6 +151,15 @@ export function startMockZhihu(port) {
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
       res.end(JSON.stringify(body))
     }
+    // 用户插件 z.fetch 访问的外部服务（域名由 --host-resolver-rules 指到本地）
+    if (String(req.headers.host).startsWith('api.example.test')) {
+      return json({
+        from: 'external',
+        method: req.method,
+        cookie: req.headers.cookie ?? null,
+        referer: req.headers.referer ?? null,
+      })
+    }
     if (u.pathname === '/api/v3/feed/topstory/recommend')
       return json(recommend(Number(u.searchParams.get('page_number')) || 1))
     if (u.pathname === '/api/v4/questions/9/feeds') {
