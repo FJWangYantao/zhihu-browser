@@ -12,7 +12,8 @@
     "typecheck": "tsc -p tsconfig.json",
     "postinstall": "wxt prepare",
     "test": "vitest run",
-    "e2e": "node e2e/smoke.mjs"
+    "e2e": "node e2e/smoke.mjs",
+    "e2e:user": "node e2e/user-plugins.mjs"
   },
   "dependencies": {
     "@zhihu-browser/adapter-zhihu": "workspace:*",
