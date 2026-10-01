@@ -4,6 +4,7 @@
 
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
+import http from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -461,6 +462,57 @@ await check('官方插件（屏蔽、信息增强）以用户插件方式安装�
   await manage({ op: 'uninstall', id: 'filter-copy' })
   await manage({ op: 'uninstall', id: 'info-copy' })
   await storage.set({ plugins: { filter: { enabled: true }, info: { enabled: true } } })
+})
+
+await check('开发模式：监听本机链接，保存文件就热重载（权限不变时不再确认）', async () => {
+  const state = { version: '1.0.0', drop: '13' }
+  const dev = http.createServer((_req, res) => {
+    res.writeHead(200, { 'access-control-allow-origin': '*', 'content-type': 'text/javascript' })
+    res.end(`export const meta = { id: 'dev-plugin', name: '开发中的插件', version: '${state.version}', api: 1 }
+export default function (z) { z.filter('feed', item => item.content?.id !== '${state.drop}') }
+`)
+  })
+  await new Promise(resolve => dev.listen(18_092, '127.0.0.1', resolve))
+  try {
+    await settingsPage.bringToFront()
+    await settingsPage.reload()
+    await settingsPage.locator('#plugin-url').fill('http://127.0.0.1:18092/plugin.js')
+    await settingsPage.getByRole('button', { name: '开发模式：监听更新' }).click()
+    // 第一次安装要用户确认
+    await settingsPage.locator('.review').waitFor({ timeout: 8000 })
+    assert.match(await settingsPage.locator('.review').textContent(), /安装「开发中的插件」/)
+    await settingsPage.getByRole('button', { name: '确认安装' }).click()
+    await settingsPage.locator('section.card .user-footer').waitFor({ timeout: 8000 })
+
+    const page = await open(HOME)
+    await waitFor(page, () => window.__app?.pages === 1 && document.querySelectorAll('[data-zb-id]').length >= 5)
+    const ids = () =>
+      page.evaluate(() => [...document.querySelectorAll('[data-zb-id]')].map(el => el.getAttribute('data-zb-id')))
+    assert.ok(!(await ids()).includes('answer:13'))
+    assert.ok((await ids()).includes('answer:14'))
+
+    // 再次监听：这次插件已经装过，保存文件就自动更新
+    await settingsPage.bringToFront()
+    await settingsPage.getByRole('button', { name: '开发模式：监听更新' }).click()
+    state.version = '1.0.1'
+    state.drop = '14'
+    await settingsPage
+      .locator('[role="status"]', { hasText: '已热重载「开发中的插件」1.0.1' })
+      .waitFor({ timeout: 10_000 })
+    await until(
+      () =>
+        page.evaluate(() => {
+          const el = document.querySelector('[data-zb-id="answer:14"]')
+          return !el || !!el.closest('[data-zb-hidden]')
+        }),
+      10_000,
+    )
+    await settingsPage.getByRole('button', { name: '停止监听' }).click()
+    await page.close()
+    await manage({ op: 'uninstall', id: 'dev-plugin' })
+  } finally {
+    await new Promise(resolve => dev.close(resolve))
+  }
 })
 
 await check('页面上没有报错', async () => {

@@ -281,3 +281,78 @@ describe('已安装插件的操作', () => {
     expect(text()).toContain('已授权')
   })
 })
+
+describe('开发模式', () => {
+  const importDev = async () => (await import('../entrypoints/options/user-plugins')).devTick
+
+  test('第一次安装要用户确认，不会自动装', async () => {
+    const devTick = await importDev()
+    const { client, calls } = fakeClient()
+    const result = await devTick(client, 'http://127.0.0.1:5177/plugin.js', {})
+    expect(result.review).toEqual({ source: 'downloaded', fileName: 'x.ts' })
+    expect(calls.some(c => (c as { op: string }).op === 'install')).toBe(false)
+  })
+
+  test('已经装过的插件：文件变化就自动更新，没变就什么也不做', async () => {
+    const devTick = await importDev()
+    const { client, calls } = fakeClient({
+      manage: (async (request: { op: string }) => {
+        calls.push(request)
+        if (request.op === 'plan') return { ok: true, value: plan({ action: 'update' }) }
+        return { ok: true, value: { entry: {}, plan: plan(), scriptsAvailable: true } }
+      }) as PluginClient['manage'],
+    })
+    const last: { source?: string } = {}
+    const first = await devTick(client, 'u', last)
+    expect(first.status?.kind).toBe('ok')
+    expect(first.status?.kind === 'ok' && first.status.text).toContain('已热重载「我的插件」1.0.0')
+    expect(calls.map(c => (c as { op: string }).op)).toEqual(['plan', 'install'])
+    // 文件没变：不再请求后台
+    const again = await devTick(client, 'u', last)
+    expect(again).toEqual({})
+    expect(calls).toHaveLength(2)
+  })
+
+  test('更新带来新的权限时停下来确认', async () => {
+    const devTick = await importDev()
+    const { client } = fakeClient({
+      manage: (async () => ({
+        ok: true,
+        value: plan({ action: 'update', permissions: { added: ['new.example.com'], removed: [] } }),
+      })) as PluginClient['manage'],
+    })
+    const result = await devTick(client, 'u', {})
+    expect(result.review).toBeDefined()
+  })
+
+  test('代码有问题或链接读不到时报告，不安装', async () => {
+    const devTick = await importDev()
+    const bad = fakeClient({
+      manage: (async () => ({ ok: false, error: 'x', problems: ['缺少默认导出'] })) as never,
+    })
+    expect((await devTick(bad.client, 'u', {})).status).toEqual({ kind: 'error', text: '代码有问题：缺少默认导出' })
+    const down = fakeClient({
+      fetchSource: vi.fn(async () => {
+        throw new Error('连接被拒绝')
+      }),
+    })
+    expect((await devTick(down.client, 'u', {})).status).toEqual({
+      kind: 'error',
+      text: '读取链接失败：连接被拒绝',
+    })
+  })
+
+  test('界面：开始监听后自动更新，需要确认时进入确认页', async () => {
+    const { client, calls } = fakeClient()
+    await act(async () => {
+      render(<InstallPanel client={client} onInstalled={() => {}} />, root)
+      await flush()
+    })
+    await type($('#plugin-url'), 'http://127.0.0.1:5177/plugin.js')
+    await click('开发模式：监听更新')
+    await vi.waitFor(() => expect(text()).toContain('安装「我的插件」'))
+    // 第一次安装：停止监听，等用户确认
+    expect(button('开发模式：监听更新')).toBeDefined()
+    expect(calls.some(c => (c as { op: string }).op === 'install')).toBe(false)
+  })
+})

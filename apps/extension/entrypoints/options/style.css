@@ -456,3 +456,11 @@ pre.source {
 button.link.danger {
   color: var(--danger);
 }
+
+.dev-watch {
+  margin-top: 8px;
+}
+
+.dev-watch .actions {
+  align-items: center;
+}

@@ -104,6 +104,99 @@ function ReviewPanel(props: { review: Review; busy: boolean; onConfirm: () => vo
   )
 }
 
+/** 开发模式的轮询间隔（毫秒） */
+export const DEV_POLL_MS = 1000
+
+export type DevStatus = { kind: 'idle' } | { kind: 'ok'; text: string } | { kind: 'error'; text: string }
+
+/**
+ * 开发模式：不断检查一个链接，文件变了就自动更新插件（热重载）。
+ * 第一次安装、或者更新带来新的权限时停下来，交给用户确认；其他更新不再打扰。
+ */
+export async function devTick(
+  client: PluginClient,
+  url: string,
+  last: { source?: string },
+): Promise<{ status?: DevStatus; review?: { source: string; fileName: string } }> {
+  let downloaded: { source: string; fileName: string }
+  try {
+    downloaded = await client.fetchSource(url)
+  } catch (e) {
+    return { status: { kind: 'error', text: `读取链接失败：${e instanceof Error ? e.message : String(e)}` } }
+  }
+  if (downloaded.source === last.source) return {}
+  const plan = await client.manage({ op: 'plan', source: downloaded.source, fileName: downloaded.fileName })
+  last.source = downloaded.source
+  if (!plan.ok) return { status: { kind: 'error', text: `代码有问题：${(plan.problems ?? [plan.error]).join('；')}` } }
+  if (plan.value.action === 'install' || plan.value.permissions.added.length > 0) {
+    return { review: downloaded }
+  }
+  const installed = await client.manage({ op: 'install', source: downloaded.source, fileName: downloaded.fileName })
+  if (!installed.ok) return { status: { kind: 'error', text: `更新失败：${installed.error}` } }
+  const time = new Date().toTimeString().slice(0, 8)
+  return { status: { kind: 'ok', text: `${time} 已热重载「${plan.value.meta.name}」${plan.value.meta.version}` } }
+}
+
+function DevWatcher(props: {
+  client: PluginClient
+  url: string
+  intervalMs?: number
+  /** 需要用户确认（第一次安装或权限变化）：交给安装确认流程 */
+  onReview: (source: string, fileName: string) => void
+}) {
+  const [watching, setWatching] = useState(false)
+  const [status, setStatus] = useState<DevStatus>({ kind: 'idle' })
+  const { client, url, onReview } = props
+
+  useEffect(() => {
+    if (!watching) return
+    let live = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const last: { source?: string } = {}
+    const loop = async () => {
+      const result = await devTick(client, url, last)
+      if (!live) return
+      if (result.status) setStatus(result.status)
+      if (result.review) {
+        setWatching(false)
+        onReview(result.review.source, result.review.fileName)
+        return
+      }
+      timer = setTimeout(() => void loop(), props.intervalMs ?? DEV_POLL_MS)
+    }
+    void loop()
+    return () => {
+      live = false
+      clearTimeout(timer)
+    }
+  }, [watching, client, url, onReview, props.intervalMs])
+
+  return (
+    <div class="dev-watch">
+      <div class="actions">
+        <button
+          type="button"
+          disabled={!url.trim()}
+          onClick={() => {
+            setStatus({ kind: 'idle' })
+            setWatching(!watching)
+          }}
+        >
+          {watching ? '停止监听' : '开发模式：监听更新'}
+        </button>
+        {watching && (
+          <span class="description">每秒检查一次这个链接，文件变化时自动更新插件。请保持这个页面打开。</span>
+        )}
+      </div>
+      {status.kind !== 'idle' && (
+        <p class={status.kind === 'error' ? 'description error' : 'description'} role="status">
+          {status.text}
+        </p>
+      )}
+    </div>
+  )
+}
+
 export interface InstallPanelHandle {
   /** 把源码放进编辑框（"编辑源码"） */
   edit(source: string, fileName?: string): void
@@ -180,7 +273,7 @@ export function InstallPanel(props: {
       setReview(undefined)
       setSource('')
       setFileName(undefined)
-      setUrl('')
+      // 链接保留着：开发模式下装完马上要监听它
       props.onInstalled({
         name: plan.meta.name,
         action: ACTION_LABEL[plan.action],
@@ -274,6 +367,15 @@ export function InstallPanel(props: {
               下载并检查
             </button>
           </div>
+          <DevWatcher
+            client={client}
+            url={url}
+            onReview={(text, name) => {
+              setSource(text)
+              setFileName(name)
+              void check(text, name)
+            }}
+          />
         </div>
 
         {problems.length > 0 && (
