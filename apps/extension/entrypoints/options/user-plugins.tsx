@@ -17,8 +17,33 @@ const ACTION_LABEL = {
 } as const
 
 /** "允许用户脚本"的引导：没有打开时，用户插件不会运行 */
-export function UserScriptsGuide(props: { client: PluginClient; available: boolean | undefined }) {
+export function UserScriptsGuide(props: {
+  client: PluginClient
+  available: boolean | undefined
+  onGranted?: () => void
+}) {
   if (props.available !== false) return null
+  if (props.client.firefox) {
+    return (
+      <div class="banner guide" role="note">
+        <strong>用户插件需要先授予"运行用户脚本"的权限。</strong>
+        <p>
+          这是 Firefox 要求的：它表示你允许这个扩展运行"没有经过 Mozilla 审核的代码"。官方插件和数据包不需要这个权限。
+        </p>
+        <div class="actions">
+          <button
+            type="button"
+            class="primary"
+            onClick={() => {
+              void props.client.requestUserScripts().then(ok => ok && props.onGranted?.())
+            }}
+          >
+            授予权限
+          </button>
+        </div>
+      </div>
+    )
+  }
   return (
     <div class="banner guide" role="note">
       <strong>用户插件需要先打开"允许用户脚本"。</strong>

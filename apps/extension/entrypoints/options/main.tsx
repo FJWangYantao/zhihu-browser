@@ -40,12 +40,14 @@ function App() {
     return watch(api, watchedKey, reload)
   }, [])
 
+  const checkScripts = () =>
+    void client.manage({ op: 'status' }).then(r => r.ok && setScriptsAvailable(r.value.available))
+
   useEffect(() => {
     // 用户在扩展详情页打开"允许用户脚本"后回到这里：重新检查（后台顺便把脚本注册上）
-    const check = () => void client.manage({ op: 'status' }).then(r => r.ok && setScriptsAvailable(r.value.available))
-    check()
-    window.addEventListener('focus', check)
-    return () => window.removeEventListener('focus', check)
+    checkScripts()
+    window.addEventListener('focus', checkScripts)
+    return () => window.removeEventListener('focus', checkScripts)
   }, [])
 
   if (!state) return <p class="loading">正在读取设置…</p>
@@ -132,7 +134,7 @@ function App() {
         />
       ))}
 
-      <UserScriptsGuide client={client} available={scriptsAvailable} />
+      <UserScriptsGuide client={client} available={scriptsAvailable} onGranted={checkScripts} />
 
       {Object.values(state.userPlugins)
         .sort((a, b) => a.installedAt - b.installedAt)

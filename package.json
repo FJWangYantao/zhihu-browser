@@ -13,7 +13,8 @@
     "format": "biome check --write .",
     "typecheck": "pnpm -r typecheck && node scripts/check-doc-examples.mjs && node scripts/check-template.mjs && tsc -p docs/examples/tsconfig.json && node scripts/build-ai-guide.mjs --check",
     "test": "vitest run",
-    "e2e": "pnpm --filter @zhihu-browser/extension e2e && pnpm --filter @zhihu-browser/extension e2e:user"
+    "e2e": "pnpm --filter @zhihu-browser/extension e2e && pnpm --filter @zhihu-browser/extension e2e:user",
+    "build:firefox": "pnpm --filter @zhihu-browser/extension build:firefox"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

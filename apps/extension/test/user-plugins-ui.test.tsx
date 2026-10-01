@@ -64,6 +64,8 @@ function fakeClient(overrides: Partial<PluginClient> = {}) {
     fetchSource: vi.fn(async () => ({ source: 'downloaded', fileName: 'x.ts' })),
     openExtensionDetails: vi.fn(),
     detailsUrl: 'chrome://extensions/?id=abc',
+    firefox: false,
+    requestUserScripts: vi.fn(async () => true),
     ...overrides,
   }
   return { client, calls }
@@ -85,6 +87,19 @@ describe('引导', () => {
     expect(text()).toContain('chrome://extensions/?id=abc')
     await click('打开 zhihu-browser 的扩展详情页')
     expect(client.openExtensionDetails).toHaveBeenCalled()
+  })
+})
+
+describe('Firefox 的引导', () => {
+  test('请求可选权限，授予后通知', async () => {
+    const { client } = fakeClient({ firefox: true })
+    const onGranted = vi.fn()
+    render(<UserScriptsGuide client={client} available={false} onGranted={onGranted} />, root)
+    expect(text()).toContain('授予"运行用户脚本"的权限')
+    expect(text()).not.toContain('扩展详情页')
+    await click('授予权限')
+    expect(client.requestUserScripts).toHaveBeenCalled()
+    expect(onGranted).toHaveBeenCalled()
   })
 })
 

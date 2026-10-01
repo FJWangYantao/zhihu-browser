@@ -36,11 +36,22 @@ jobs:
       - name: 构建扩展
         run: pnpm build
 
+      - name: 构建 Firefox 版并检查（web-ext lint）
+        run: |
+          pnpm build:firefox
+          pnpm --filter @zhihu-browser/extension lint:firefox
+
       - name: 上传构建好的扩展
         uses: actions/upload-artifact@v6
         with:
           name: zhihu-browser-chrome-mv3
           path: apps/extension/.output/chrome-mv3
+
+      - name: 上传构建好的 Firefox 扩展
+        uses: actions/upload-artifact@v6
+        with:
+          name: zhihu-browser-firefox-mv3
+          path: apps/extension/.output/firefox-mv3
 
       - name: 安装端到端测试用的 Chromium
         run: pnpm --filter @zhihu-browser/extension exec playwright install --with-deps chromium

@@ -23,6 +23,9 @@ export interface PluginClient {
   openExtensionDetails(): void
   /** 详情页的地址（打不开时让用户自己复制） */
   detailsUrl: string
+  /** Firefox：userScripts 是可选权限，要在设置页里请求（必须在用户点击的处理函数里直接调用） */
+  firefox: boolean
+  requestUserScripts(): Promise<boolean>
 }
 
 const MAX_DOWNLOAD_BYTES = 1024 * 1024
@@ -93,5 +96,13 @@ export function createPluginClient(): PluginClient {
       void browser.tabs.create({ url: detailsUrl }).catch(() => {})
     },
     detailsUrl,
+    firefox: import.meta.env.BROWSER === 'firefox',
+    async requestUserScripts() {
+      try {
+        return await browser.permissions.request({ permissions: ['userScripts' as never] })
+      } catch {
+        return false
+      }
+    },
   }
 }

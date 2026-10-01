@@ -12,7 +12,7 @@ export const ZHIHU_MATCHES = ['*://*.zhihu.com/*']
 /** 用到的 userScripts API（便于测试时替换） */
 export interface UserScriptsApi {
   register(scripts: RegisteredScript[]): Promise<void>
-  update(scripts: RegisteredScript[]): Promise<void>
+  update?(scripts: RegisteredScript[]): Promise<void>
   unregister(filter?: { ids?: string[] }): Promise<void>
   getScripts(filter?: { ids?: string[] }): Promise<{ id: string }[]>
   configureWorld(properties: { worldId?: string; csp?: string; messaging?: boolean }): Promise<void>
@@ -63,7 +63,13 @@ export function buildScript(pluginId: string, code: string): RegisteredScript {
 
 /** 用户脚本环境的统一配置：不开放扩展的消息通道（插件只能通过 DOM 事件和代理通信） */
 export async function configureWorlds(api: UserScriptsApi, pluginIds: string[]): Promise<void> {
-  for (const id of pluginIds) await api.configureWorld({ worldId: scriptId(id), messaging: false })
+  for (const id of pluginIds) {
+    try {
+      await api.configureWorld({ worldId: scriptId(id), messaging: false })
+    } catch {
+      // 不支持按 worldId 配置的浏览器：用默认配置（默认也不开放消息通道）
+    }
+  }
 }
 
 /**
@@ -94,9 +100,15 @@ export async function reconcileScripts(
   const removed = [...existing].filter(id => !keep.has(id))
   if (removed.length) await api.unregister({ ids: removed })
   await configureWorlds(api, registered)
-  const toUpdate = scripts.filter(s => existing.has(s.id))
-  const toAdd = scripts.filter(s => !existing.has(s.id))
-  if (toUpdate.length) await api.update(toUpdate)
+  let toUpdate = scripts.filter(s => existing.has(s.id))
+  let toAdd = scripts.filter(s => !existing.has(s.id))
+  if (toUpdate.length && typeof api.update !== 'function') {
+    // 没有 update 的浏览器：撤销再注册
+    await api.unregister({ ids: toUpdate.map(s => s.id) })
+    toAdd = [...toAdd, ...toUpdate]
+    toUpdate = []
+  }
+  if (toUpdate.length) await api.update?.(toUpdate)
   if (toAdd.length) await api.register(toAdd)
   return {
     registered,

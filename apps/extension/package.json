@@ -13,7 +13,10 @@
     "postinstall": "wxt prepare",
     "test": "vitest run",
     "e2e": "node e2e/smoke.mjs",
-    "e2e:user": "node e2e/user-plugins.mjs"
+    "e2e:user": "node e2e/user-plugins.mjs",
+    "build:firefox": "wxt build -b firefox --mv3",
+    "zip:firefox": "wxt zip -b firefox --mv3",
+    "lint:firefox": "web-ext lint -s .output/firefox-mv3"
   },
   "dependencies": {
     "@zhihu-browser/adapter-zhihu": "workspace:*",
@@ -35,6 +38,7 @@
     "playwright": "1.56.1",
     "typescript": "^7.0.2",
     "vitest": "^5.0.2",
+    "web-ext": "^8.0.0",
     "wxt": "^0.21.4"
   }
 }
