@@ -13,7 +13,7 @@
     "format": "biome check --write .",
     "typecheck": "pnpm -r typecheck && node scripts/check-doc-examples.mjs",
     "test": "vitest run",
-    "e2e": "pnpm --filter @zhihu-browser/extension e2e"
+    "e2e": "pnpm --filter @zhihu-browser/extension e2e && pnpm --filter @zhihu-browser/extension e2e:user"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

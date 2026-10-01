@@ -48,6 +48,8 @@ export function PluginCard(props: {
   onChange: (key: string, value: unknown) => void
   onReset: () => void
   onExport: () => void
+  /** 卡片底部的额外内容（用户插件的权限、源码、卸载） */
+  footer?: ComponentChildren
 }) {
   const { meta } = props
   const specs = Object.entries(meta.settings ?? {})
@@ -83,6 +85,7 @@ export function PluginCard(props: {
           </div>
         </div>
       )}
+      {props.footer}
     </Card>
   )
 }

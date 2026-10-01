@@ -378,3 +378,81 @@ button:disabled {
   opacity: 0.5;
   cursor: default;
 }
+
+/* ---------- 用户插件 ---------- */
+
+.banner.guide ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.banner.guide p {
+  margin: 8px 0 0;
+}
+
+textarea.code,
+pre.source {
+  font:
+    13px / 1.5 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+}
+
+textarea.code {
+  width: 100%;
+  box-sizing: border-box;
+  white-space: pre;
+  tab-size: 2;
+}
+
+pre.source {
+  max-height: 360px;
+  margin: 8px 0 0;
+  padding: 12px;
+  overflow: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.inline {
+  display: flex;
+  gap: 8px;
+}
+
+.inline input {
+  flex: 1;
+}
+
+.review h4 {
+  margin: 12px 0 4px;
+  font-size: 14px;
+}
+
+.review .warning {
+  padding: 8px 12px;
+  color: var(--text);
+  background: var(--banner);
+  border-radius: 6px;
+}
+
+.review .new {
+  color: var(--danger);
+}
+
+.review summary {
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.user-footer {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+button.link.danger {
+  color: var(--danger);
+}

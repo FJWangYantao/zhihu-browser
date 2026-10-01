@@ -153,6 +153,11 @@ await check('没有开启"允许用户脚本"：插件照样保存，知乎页�
   const result = await install(PLUGIN('1.0.0', '13'))
   assert.equal(result.scriptsAvailable, false)
   assert.equal(result.entry.enabled, true)
+  // 设置页上有"允许用户脚本"的引导，已安装的插件显示成卡片
+  await settingsPage.reload()
+  await settingsPage.locator('.guide').waitFor({ timeout: 8000 })
+  assert.match(await settingsPage.locator('.guide').textContent(), /允许用户脚本/)
+  await settingsPage.locator('section.card', { has: settingsPage.locator('.user-footer') }).first().waitFor({ timeout: 8000 })
   const home = await open(HOME)
   await waitFor(home, () => window.__app?.pages === 1 && document.querySelectorAll('[data-zb-id]').length >= 6)
   await home.keyboard.press('Control+k')
@@ -174,6 +179,10 @@ await check('打开"允许用户脚本"：回到设置页，脚本自动注册',
   await setUserScriptsToggle(true)
   const status = await manage({ op: 'status' })
   assert.deepEqual(status.value, { available: true })
+  // 回到设置页时自动重新检查，引导消失
+  await settingsPage.bringToFront()
+  await settingsPage.evaluate(() => window.dispatchEvent(new Event('focus')))
+  await settingsPage.locator('.guide').waitFor({ state: 'detached', timeout: 8000 })
   const scripts = await sw.evaluate(() => chrome.userScripts.getScripts())
   assert.deepEqual(
     scripts.map(s => s.id),
@@ -299,6 +308,37 @@ await check('用户插件不能和官方插件重名；内容不合法时给出�
   })
   assert.equal(bad.ok, false)
   assert.ok(bad.problems.length > 0)
+})
+
+await check('设置页：粘贴安装（先确认）、卡片里改设置、停用、卸载', async () => {
+  await settingsPage.bringToFront()
+  await settingsPage.reload()
+  await settingsPage.locator('#plugin-source').fill(PLUGIN('2.0.0', '12'))
+  await settingsPage.getByRole('button', { name: '检查并安装' }).click()
+  const review = settingsPage.locator('.review')
+  await review.waitFor({ timeout: 8000 })
+  assert.match(await review.textContent(), /安装「端到端插件」/)
+  assert.match(await review.textContent(), /不访问任何外部网络/)
+  assert.match(await review.locator('pre.source').textContent(), /export default function/)
+  // 确认之前什么也没有安装
+  assert.deepEqual(Object.keys((await storage.get('userPlugins')).userPlugins ?? {}), [])
+  await settingsPage.getByRole('button', { name: '确认安装' }).click()
+  const card = settingsPage.locator('section.card', { has: settingsPage.locator('.user-footer') }).first()
+  await card.waitFor({ timeout: 8000 })
+  assert.match(await card.textContent(), /用户插件 · id：e2e-plugin/)
+  await card.locator('#e2e-plugin-badge').fill('从设置页改的')
+  await card.locator('#e2e-plugin-badge').blur()
+  await until(async () => (await storage.get('settings:e2e-plugin'))['settings:e2e-plugin']?.badge === '从设置页改的')
+  // 已打开的知乎页面：新装的插件立即开始运行
+  await home.bringToFront()
+  await until(async () => (await badgeTexts(home, '用户插件')) + (await badgeTexts(home, '从设置页改的')) > 0)
+  await settingsPage.bringToFront()
+  await card.locator('input[role="switch"]').evaluate(el => el.click())
+  await until(async () => !(await storage.get('userPlugins')).userPlugins['e2e-plugin'].enabled)
+  await card.getByRole('button', { name: '卸载' }).click()
+  await card.getByRole('button', { name: '确认卸载' }).click()
+  await settingsPage.locator('section.card .user-footer').waitFor({ state: 'detached', timeout: 8000 })
+  assert.deepEqual(Object.keys((await storage.get('userPlugins')).userPlugins ?? {}), [])
 })
 
 await check('页面上没有报错', async () => {
